@@ -1,0 +1,16 @@
+; mode: lsp
+; lsp: open
+; lsp: await textDocument/publishDiagnostics
+; check: "message":"arg 1 (v1) has type i64, expected i32","range":{"end":{"character":20,"line":3},"start":{"character":4,"line":3}},"severity":1
+; check: "message":"block does not end in a terminator instruction","range":{"end":{"character":6,"line":8},"start":{"character":0,"line":8}}
+function %mismatch(i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst.i64 1
+    v2 = iadd v0, v1
+    return v2
+}
+
+function %no_terminator(i32) {
+block0(v0: i32):
+    v1 = iadd v0, v0
+}

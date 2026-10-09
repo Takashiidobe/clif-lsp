@@ -1,0 +1,9 @@
+; mode: lsp
+; lsp: open
+; lsp: await textDocument/publishDiagnostics
+; check: "message":"expected dynamic type","range":{"end":{"character":21,"line":2},"start":{"character":4,"line":2}},"severity":1
+function %arity(i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst.i33 1
+    return v1
+}

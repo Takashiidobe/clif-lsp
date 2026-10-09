@@ -1,0 +1,10 @@
+; mode: lsp
+; lsp: open
+; lsp: await textDocument/publishDiagnostics
+; check: "message":"undefined value `v9`","range":{"end":{"character":20,"line":2},"start":{"character":18,"line":2}},"severity":1
+; check: "message":"undefined block `block7`"
+function %f(i32) -> i32 {
+block0(v0: i32):
+    v1 = iadd v0, v9
+    jump block7
+}

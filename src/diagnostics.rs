@@ -1,20 +1,126 @@
-use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity, Range};
+use cranelift_codegen::ir::entities::AnyEntity;
+use cranelift_codegen::ir::{Block, Function as IrFunction, Inst};
+use cranelift_codegen::isa::TargetIsa;
+use cranelift_codegen::settings::FlagsOrIsa;
+use cranelift_codegen::verifier::verify_function;
+use cranelift_reader::{ParseOptions, parse_test};
+use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity, Position, Range};
 
 use crate::document::Document;
+use crate::resolve::{self, NameKind, Resolution};
+use crate::syntax::{Function, Item, Span, SyntaxError};
 
 const SOURCE: &str = "clif-lsp";
 
-pub fn syntax(document: &Document) -> Vec<Diagnostic> {
-    document
+pub fn all(document: &Document) -> Vec<Diagnostic> {
+    let file = document.file();
+    let resolution = resolve::resolve(file, document.text());
+    let syntax_clean = file.errors.is_empty();
+
+    let mut out: Vec<Diagnostic> = file.errors.iter().map(|e| at_span(document, e, DiagnosticSeverity::ERROR)).collect();
+    let severity = if syntax_clean { DiagnosticSeverity::ERROR } else { DiagnosticSeverity::WARNING };
+    out.extend(resolution.problems.iter().map(|p| at_span(document, p, severity)));
+    if syntax_clean && resolution.problems.is_empty() {
+        out.extend(semantic(document, &resolution));
+    }
+    out
+}
+
+fn at_span(document: &Document, error: &SyntaxError, severity: DiagnosticSeverity) -> Diagnostic {
+    let range = Range::new(document.position(error.span.start), document.position(error.span.end));
+    diagnostic(range, error.message.clone(), severity)
+}
+
+fn diagnostic(range: Range, message: String, severity: DiagnosticSeverity) -> Diagnostic {
+    Diagnostic {
+        range,
+        severity: Some(severity),
+        source: Some(SOURCE.to_owned()),
+        message,
+        ..Diagnostic::default()
+    }
+}
+
+fn semantic(document: &Document, resolution: &Resolution) -> Vec<Diagnostic> {
+    let text = document.text();
+    let test = match parse_test(text, ParseOptions::default()) {
+        Ok(test) => test,
+        Err(error) => {
+            let line = error.location.line_number.saturating_sub(1) as u32;
+            return vec![diagnostic(line_range(document, line), error.message, DiagnosticSeverity::ERROR)];
+        }
+    };
+
+    let functions: Vec<(usize, &Function)> = document
         .file()
-        .errors
+        .items
         .iter()
-        .map(|error| Diagnostic {
-            range: Range::new(document.position(error.span.start), document.position(error.span.end)),
-            severity: Some(DiagnosticSeverity::ERROR),
-            source: Some(SOURCE.to_owned()),
-            message: error.message.clone(),
-            ..Diagnostic::default()
+        .enumerate()
+        .filter_map(|(index, item)| match item {
+            Item::Function(f) => Some((index, f)),
+            Item::Directive(_) => None,
         })
-        .collect()
+        .collect();
+
+    let mut out = Vec::new();
+    for (position, (ir, _)) in test.functions.iter().enumerate() {
+        let Some(&(scope, function)) = functions.get(position) else { break };
+        let Err(errors) = verify_function(ir, flags_or_isa(&test.isa_spec)) else { continue };
+        for error in errors.0 {
+            let span = locate(ir, function, scope, resolution, error.location);
+            let range = Range::new(document.position(span.start), document.position(span.end));
+            out.push(diagnostic(range, error.message, DiagnosticSeverity::ERROR));
+        }
+    }
+    out
+}
+
+fn flags_or_isa(spec: &cranelift_reader::IsaSpec) -> FlagsOrIsa<'_> {
+    match spec {
+        cranelift_reader::IsaSpec::None(flags) => FlagsOrIsa { flags, isa: None },
+        cranelift_reader::IsaSpec::Some(isas) => {
+            let isa: &dyn TargetIsa = &*isas[0];
+            FlagsOrIsa { flags: isa.flags(), isa: Some(isa) }
+        }
+    }
+}
+
+fn locate(ir: &IrFunction, function: &Function, scope: usize, resolution: &Resolution, location: AnyEntity) -> Span {
+    let precise = match location {
+        AnyEntity::Inst(inst) => inst_span(ir, function, inst),
+        AnyEntity::Block(block) => block_span(ir, function, block),
+        AnyEntity::Function => None,
+        entity => {
+            let name = entity.to_string();
+            resolution
+                .defs
+                .iter()
+                .find(|d| d.scope == Some(scope) && d.kind != NameKind::Block && d.name == name)
+                .map(|d| d.span)
+        }
+    };
+    precise.or(function.name).unwrap_or(function.span)
+}
+
+fn block_span(ir: &IrFunction, function: &Function, block: Block) -> Option<Span> {
+    let index = ir.layout.blocks().position(|b| b == block)?;
+    function.blocks.get(index).map(|b| b.name.into())
+}
+
+fn inst_span(ir: &IrFunction, function: &Function, inst: Inst) -> Option<Span> {
+    for (index, block) in ir.layout.blocks().enumerate() {
+        if let Some(at) = ir.layout.block_insts(block).position(|i| i == inst) {
+            return function.blocks.get(index)?.insts.get(at).map(|i| i.span);
+        }
+    }
+    None
+}
+
+fn line_range(document: &Document, line: u32) -> Range {
+    let start = document.offset(Position::new(line, 0));
+    let text = document.text();
+    let end = text[start..].find('\n').map_or(text.len(), |n| start + n);
+    let body = text[start..end].trim_end_matches('\r');
+    let lead = body.len() - body.trim_start().len();
+    Range::new(document.position(start + lead), document.position(start + body.trim_end().len()))
 }

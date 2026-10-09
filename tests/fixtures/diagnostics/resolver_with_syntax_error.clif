@@ -1,0 +1,10 @@
+; mode: lsp
+; lsp: open
+; lsp: await textDocument/publishDiagnostics
+; check: "message":"unknown opcode `bogus`"
+; check: "message":"undefined value `v9`","range":{"end":{"character":21,"line":2},"start":{"character":19,"line":2}},"severity":2
+function %f(i32) -> i32 {
+block0(v0: i32):
+    v1 = bogus v0, v9
+    return v0
+}

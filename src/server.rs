@@ -46,7 +46,7 @@ impl LanguageServer for Backend {
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let doc = params.text_document;
         let document = Document::new(&doc.text);
-        let found = diagnostics::syntax(&document);
+        let found = diagnostics::all(&document);
         self.documents.write().await.insert(doc.uri.clone(), document);
         self.publish(doc.uri, Some(doc.version), found).await;
     }
@@ -59,7 +59,7 @@ impl LanguageServer for Backend {
             for change in params.content_changes {
                 document.apply(change.range, &change.text);
             }
-            diagnostics::syntax(document)
+            diagnostics::all(document)
         };
         self.publish(uri, Some(params.text_document.version), found).await;
     }
