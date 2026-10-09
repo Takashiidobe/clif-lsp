@@ -1,0 +1,15 @@
+; mode: lsp
+; lsp: open
+; lsp: await textDocument/publishDiagnostics
+; check: "message":"unclosed function body"
+; check: "message":"unknown opcode `bogus`"
+; check: "message":"unexpected character `#`"
+function %a() {
+block0:
+    v0 = iconst.i32 1
+    v1 = bogus v0
+    # stray
+function %b() {
+block0:
+    return
+}

@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::time::Duration;
 
 use clif_lsp::modes::{parse_edit, plain_text};
@@ -14,6 +15,7 @@ struct Client {
     writer: WriteHalf<DuplexStream>,
     next_id: u64,
     version: i64,
+    notifications: VecDeque<Value>,
 }
 
 impl Client {
@@ -59,7 +61,7 @@ impl Client {
                         let reply = json!({"jsonrpc": "2.0", "id": request_id, "result": null});
                         self.send(&reply).await?;
                     }
-                    (Some(_), None) => {}
+                    (Some(_), None) => self.notifications.push_back(message),
                     (None, _) if message.get("id") == Some(&json!(id)) => return Ok(render_response(&message)),
                     (None, _) => {}
                 }
@@ -67,6 +69,22 @@ impl Client {
         })
         .await
         .map_err(|_| format!("timed out waiting for the response to `{method}`"))?
+    }
+
+    async fn await_notification(&mut self, method: &str) -> Result<String, String> {
+        tokio::time::timeout(TIMEOUT, async {
+            loop {
+                if let Some(at) = self.notifications.iter().position(|n| n["method"] == method) {
+                    return Ok(self.notifications.remove(at).unwrap()["params"].to_string());
+                }
+                let message = self.receive().await?;
+                if message.get("method").is_some() && message.get("id").is_none() {
+                    self.notifications.push_back(message);
+                }
+            }
+        })
+        .await
+        .map_err(|_| format!("timed out waiting for notification `{method}`"))?
     }
 
     fn text_document(&self) -> Value {
@@ -119,6 +137,7 @@ async fn step(client: &mut Client, source: &str, command: &str) -> Result<String
             }
             Ok(format!("{method} -> {}", client.request(method, params).await?))
         }
+        "await" => Ok(format!("{rest} <- {}", client.await_notification(rest).await?)),
         _ => Err(format!("unknown lsp command `{command}`")),
     }
 }
@@ -126,7 +145,7 @@ async fn step(client: &mut Client, source: &str, command: &str) -> Result<String
 async fn session(source: &str) -> Result<String, String> {
     let (client_io, server_io) = tokio::io::duplex(1 << 16);
     let (server_read, server_write) = split(server_io);
-    let (service, socket) = LspService::new(|_| Backend::new());
+    let (service, socket) = LspService::new(Backend::new);
     let server = tokio::spawn(Server::new(server_read, server_write, socket).serve(service));
     let (client_read, client_write) = split(client_io);
     let mut client = Client {
@@ -134,6 +153,7 @@ async fn session(source: &str) -> Result<String, String> {
         writer: client_write,
         next_id: 0,
         version: 1,
+        notifications: VecDeque::new(),
     };
 
     let mut out = String::new();

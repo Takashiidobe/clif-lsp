@@ -1,0 +1,19 @@
+; mode: lsp
+; lsp: open
+; lsp: await textDocument/publishDiagnostics
+; lsp: change 2:9-2:14 iadd
+; lsp: await textDocument/publishDiagnostics
+; lsp: close
+; lsp: await textDocument/publishDiagnostics
+; check: publishDiagnostics <- {"diagnostics":[{"message":"unknown opcode `iaddd`","range":{"end":{"character":14,"line":2},"start":{"character":9,"line":2}},"severity":1,"source":"clif-lsp"}]
+; check: "version":1
+; nextln: change 2:9-2:14 iadd
+; nextln: publishDiagnostics <- {"diagnostics":[],
+; check: "version":2
+; nextln: close
+; nextln: publishDiagnostics <- {"diagnostics":[],"uri":"file:///fixture.clif"}
+function %f(i32) -> i32 {
+block0(v0: i32):
+    v1 = iaddd v0, v0
+    return v1
+}

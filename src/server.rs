@@ -5,25 +5,25 @@ use tokio::sync::RwLock;
 use tower_lsp_server::jsonrpc::Result;
 use tower_lsp_server::ls_types::{
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams,
-    InitializeResult, ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
+    InitializeResult, Diagnostic, ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
 };
-use tower_lsp_server::LanguageServer;
+use tower_lsp_server::{Client, LanguageServer};
 
+use crate::diagnostics;
 use crate::document::Document;
 
 pub struct Backend {
+    client: Client,
     documents: Arc<RwLock<HashMap<Uri, Document>>>,
 }
 
 impl Backend {
-    pub fn new() -> Self {
-        Self { documents: Arc::default() }
+    pub fn new(client: Client) -> Self {
+        Self { client, documents: Arc::default() }
     }
-}
 
-impl Default for Backend {
-    fn default() -> Self {
-        Self::new()
+    async fn publish(&self, uri: Uri, version: Option<i32>, diagnostics: Vec<Diagnostic>) {
+        self.client.publish_diagnostics(uri, diagnostics, version).await;
     }
 }
 
@@ -45,19 +45,28 @@ impl LanguageServer for Backend {
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let doc = params.text_document;
-        self.documents.write().await.insert(doc.uri, Document::new(&doc.text));
+        let document = Document::new(&doc.text);
+        let found = diagnostics::syntax(&document);
+        self.documents.write().await.insert(doc.uri.clone(), document);
+        self.publish(doc.uri, Some(doc.version), found).await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        let mut documents = self.documents.write().await;
-        if let Some(document) = documents.get_mut(&params.text_document.uri) {
+        let uri = params.text_document.uri;
+        let found = {
+            let mut documents = self.documents.write().await;
+            let Some(document) = documents.get_mut(&uri) else { return };
             for change in params.content_changes {
                 document.apply(change.range, &change.text);
             }
-        }
+            diagnostics::syntax(document)
+        };
+        self.publish(uri, Some(params.text_document.version), found).await;
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        self.documents.write().await.remove(&params.text_document.uri);
+        let uri = params.text_document.uri;
+        self.documents.write().await.remove(&uri);
+        self.publish(uri, None, Vec::new()).await;
     }
 }
