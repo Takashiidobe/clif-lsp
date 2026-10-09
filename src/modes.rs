@@ -1,3 +1,6 @@
+use tower_lsp_server::ls_types::{Position, Range};
+
+use crate::document::Document;
 use crate::lexer::{self, Token, TokenKind};
 use crate::parser;
 use crate::resolve;
@@ -19,6 +22,7 @@ pub fn render(mode: &str, input: &Input) -> Result<String, String> {
     match mode {
         "tokens" => render_tokens(input.source),
         "resolve" => Ok(render_resolution(input.source)),
+        "document" => render_document(input),
         "syntax-tree" => Ok(render_syntax_tree(input.source)),
         "names" => Ok(render_names(&strip_directives(input.source))),
         "opcodes" => Ok(render_opcodes(&strip_directives(input.source))),
@@ -242,4 +246,49 @@ fn render_names(source: &str) -> String {
         }
     }
     out
+}
+
+fn render_document(input: &Input) -> Result<String, String> {
+    let mut out = String::new();
+    let raw = Document::new(input.source);
+    let pos = Positions::new(input.source);
+    for query in input.queries.iter().filter(|q| q.kind == "at") {
+        let offset = pos.line_starts[query.line] + query.col;
+        let lsp = raw.position(offset);
+        let back = raw.offset(lsp) - pos.line_starts[query.line];
+        out.push_str(&format!(
+            "at {}:{} -> utf16 {} -> byte {back}\n",
+            query.line as isize - pos.header as isize,
+            query.col,
+            lsp.character
+        ));
+    }
+
+    let edits: Vec<&Query> = input.queries.iter().filter(|q| q.kind == "edit").collect();
+    if !edits.is_empty() {
+        let plain: Vec<&str> = input.source.lines().filter(|l| !is_directive(l) && !is_caret(l)).collect();
+        let mut document = Document::new(&plain.join("\n"));
+        for edit in edits {
+            let (range, text) = parse_edit(&edit.args)?;
+            document.apply(Some(range), &text);
+            out.push_str(&format!("edit {}\n", edit.args));
+        }
+        out.push_str(&format!("text:\n{}\nerrors: {}\n", document.text(), document.file().errors.len()));
+    }
+    Ok(out)
+}
+
+fn is_caret(line: &str) -> bool {
+    line.trim_start().strip_prefix(';').is_some_and(|rest| rest.trim_start().starts_with('^'))
+}
+
+fn parse_edit(args: &str) -> Result<(Range, String), String> {
+    let bad = || format!("bad edit `{args}`, expected `L:C-L:C text`");
+    let (range, text) = args.split_once(' ').unwrap_or((args, ""));
+    let (start, end) = range.split_once('-').ok_or_else(bad)?;
+    let position = |s: &str| -> Result<Position, String> {
+        let (line, col) = s.split_once(':').ok_or_else(bad)?;
+        Ok(Position::new(line.parse().map_err(|_| bad())?, col.parse().map_err(|_| bad())?))
+    };
+    Ok((Range::new(position(start)?, position(end)?), text.replace("\\n", "\n")))
 }

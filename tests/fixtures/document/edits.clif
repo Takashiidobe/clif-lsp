@@ -1,0 +1,21 @@
+; mode: document
+; check: edit 1:0-1:0 x
+; nextln: edit 1:0-1:1
+; nextln: edit 1:5-1:6 1
+; nextln: edit 1:7-1:7 \n    é😀
+; nextln: edit 2:5-2:7 z
+; nextln: edit 2:4-3:0
+; check: text:
+; nextln: function %f() {
+; nextln: block1:
+; nextln: }
+; check: errors: 0
+function %f() {
+block0:
+}
+; ^ edit 1:0-1:0 x
+; ^ edit 1:0-1:1
+; ^ edit 1:5-1:6 1
+; ^ edit 1:7-1:7 \n    é😀
+; ^ edit 2:5-2:7 z
+; ^ edit 2:4-3:0

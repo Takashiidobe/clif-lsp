@@ -1,6 +1,8 @@
-pub mod parser;
-pub mod resolve;
-pub mod syntax;
+pub mod document;
 pub mod lexer;
 pub mod modes;
+pub mod parser;
+pub mod resolve;
+pub mod server;
+pub mod syntax;
 pub mod tables;

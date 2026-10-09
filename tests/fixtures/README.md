@@ -12,3 +12,5 @@ The harness also runs invariants on every fixture, whatever its `mode:`: the lex
 Against `cranelift-reader` (0.136.2): if we report any syntax error on a file, the reader must reject it too. For files under `valid/` the reader must accept, we must report no errors, and function, block and instruction counts must match.
 
 Whenever the reader accepts a file, name resolution must report no problems for it.
+
+`document` mode exercises the document store. `at` carets print the LSP UTF-16 column for a byte position and the byte column it maps back to. `edit L:C-L:C text` carets (LSP coordinates, `\n` for newline) are applied in order to the file with directive and caret lines removed, then the text and parser error count are printed.
