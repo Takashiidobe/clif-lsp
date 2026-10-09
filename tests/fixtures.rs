@@ -6,6 +6,8 @@ use std::process::ExitCode;
 mod invariants;
 #[path = "harness/oracle.rs"]
 mod oracle;
+#[path = "harness/tables.rs"]
+mod tables;
 
 use clif_lsp::modes::{self, Input, Query};
 use filecheck::{CheckerBuilder, NO_VARIABLES};
@@ -91,6 +93,10 @@ fn main() -> ExitCode {
     collect(&root, &mut files);
 
     let (mut passed, mut failed) = (0, 0);
+    if let Err(msg) = tables::check() {
+        failed += 1;
+        eprintln!("FAIL opcode table drift\n{msg}\n");
+    }
     for path in files {
         let name = path.strip_prefix(&root).unwrap().display().to_string();
         if filter.as_ref().is_some_and(|f| !name.contains(f.as_str())) {
