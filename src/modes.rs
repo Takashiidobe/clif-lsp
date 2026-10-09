@@ -1,4 +1,6 @@
-use crate::lexer::{self, TokenKind};
+use crate::lexer::{self, Token, TokenKind};
+use crate::parser;
+use crate::syntax::{Item, Span};
 
 pub struct Query {
     pub line: usize,
@@ -15,6 +17,7 @@ pub struct Input<'a> {
 pub fn render(mode: &str, input: &Input) -> Result<String, String> {
     match mode {
         "tokens" => render_tokens(input.source),
+        "syntax-tree" => Ok(render_syntax_tree(input.source)),
         "opcodes" => Ok(render_opcodes(&strip_directives(input.source))),
         "source" => Ok(strip_directives(input.source)),
         _ => Err(format!("unknown mode `{mode}`")),
@@ -75,6 +78,108 @@ fn render_opcodes(source: &str) -> String {
         if let Some(op) = crate::tables::opcode(word) {
             out.push_str(&format!("{}: {} [{}]\n", op.name, op.signature, op.format));
         }
+    }
+    out
+}
+
+struct Positions {
+    line_starts: Vec<usize>,
+    header: usize,
+}
+
+impl Positions {
+    fn new(source: &str) -> Positions {
+        let mut line_starts = vec![0];
+        line_starts.extend(source.match_indices('\n').map(|(i, _)| i + 1));
+        let header = source.lines().take_while(|l| is_directive(l)).count();
+        Positions { line_starts, header }
+    }
+
+    fn at(&self, byte: usize) -> String {
+        let line = self.line_starts.partition_point(|&s| s <= byte) - 1;
+        let rel = line as isize - self.header as isize;
+        format!("{rel}:{}", byte - self.line_starts[line])
+    }
+
+    fn range(&self, span: Span) -> String {
+        format!("{}..{}", self.at(span.start), self.at(span.end))
+    }
+}
+
+fn join_tokens(source: &str, tokens: &[Token]) -> String {
+    tokens.iter().map(|t| t.text(source)).collect::<Vec<_>>().join(" ")
+}
+
+fn join_spans(source: &str, spans: &[Span]) -> String {
+    spans.iter().map(|s| s.text(source)).collect::<Vec<_>>().join(", ")
+}
+
+fn render_syntax_tree(source: &str) -> String {
+    let file = parser::parse(source);
+    let pos = Positions::new(source);
+    let mut out = String::new();
+    for item in &file.items {
+        match item {
+            Item::Directive(d) => {
+                out.push_str(&format!(
+                    "directive @{} {} {}\n",
+                    pos.at(d.span.start),
+                    d.keyword.text(source),
+                    join_tokens(source, &d.args)
+                ));
+            }
+            Item::Function(f) => {
+                let name = f.name.map_or("<missing>", |n| n.text(source));
+                let state = if f.closed { "closed" } else { "unclosed" };
+                out.push_str(&format!("function {name} @{} {state}\n", pos.at(f.span.start)));
+                out.push_str(&format!(
+                    "  signature ({}) -> ({})\n",
+                    join_spans(source, &f.signature.params),
+                    join_spans(source, &f.signature.returns)
+                ));
+                if let Some(cc) = f.signature.call_conv {
+                    out.push_str(&format!("  call_conv {}\n", cc.text(source)));
+                }
+                for decl in &f.decls {
+                    out.push_str(&format!(
+                        "  decl {} @{} = {}\n",
+                        decl.name.text(source),
+                        pos.at(decl.span.start),
+                        join_tokens(source, &decl.rhs)
+                    ));
+                }
+                for block in &f.blocks {
+                    out.push_str(&format!("  block {} @{}\n", block.name.text(source), pos.at(block.span.start)));
+                    for param in &block.params {
+                        let ty = param.ty.map_or("<missing>", |t| t.text(source));
+                        out.push_str(&format!("    param {} : {ty}\n", param.value.text(source)));
+                    }
+                    for inst in &block.insts {
+                        let opcode = inst.opcode.map_or("<missing>", |o| o.text(source));
+                        let suffix: String = inst.type_suffix.iter().map(|s| format!(".{}", s.text(source))).collect();
+                        let results = join_tokens(source, &inst.results);
+                        let mut parts = vec![format!("inst @{}", pos.at(inst.span.start))];
+                        if !results.is_empty() {
+                            parts.push(format!("{results} ="));
+                        }
+                        parts.push(format!("{opcode}{suffix}"));
+                        parts.push(join_tokens(source, &inst.operands));
+                        out.push_str(&format!("    {}\n", parts.join(" ").trim_end()));
+                    }
+                }
+            }
+        }
+    }
+    out.push_str("errors:\n");
+    for error in &file.errors {
+        out.push_str(&format!("  {} {}\n", pos.range(error.span), error.message));
+    }
+    out.push_str("comments:\n");
+    let (directives, plain): (Vec<&Span>, Vec<&Span>) =
+        file.comments.iter().partition(|c| is_directive(c.text(source)));
+    out.push_str(&format!("  {} directive comments\n", directives.len()));
+    for comment in plain {
+        out.push_str(&format!("  @{} {:?}\n", pos.at(comment.start), comment.text(source)));
     }
     out
 }

@@ -1,0 +1,12 @@
+; mode: syntax-tree
+; check: function %f @2:0 closed
+; check: inst @4:4 return
+; check: errors:
+; nextln: 0:0..0:12 unexpected `stray` outside a function
+; nextln: 1:0..1:7 unexpected `block0` outside a function
+stray tokens
+block0:
+function %f() {
+block0:
+    return
+}

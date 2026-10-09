@@ -1,3 +1,9 @@
+; mode: syntax-tree
+; check: function %f @0:0 closed
+; check: inst @2:4 v1 = iadd v0 ,
+; nextln: inst @3:4 return v1
+; check: errors:
+; nextln: 2:16..2:17 expected operand after `,`
 function %f(i32) -> i32 {
 block0(v0: i32):
     v1 = iadd v0,

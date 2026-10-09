@@ -1,3 +1,8 @@
+; mode: syntax-tree
+; check: inst @2:4 v1 = iadd v0 , v9
+; nextln: inst @3:4 jump block7 ( v1 )
+; check: errors:
+; nextln: comments:
 function %f(i32) -> i32 {
 block0(v0: i32):
     v1 = iadd v0, v9

@@ -1,3 +1,8 @@
+; mode: syntax-tree
+; check: inst @2:4 v1 = iad
+; nextln: inst @3:4 return v1
+; check: errors:
+; nextln: 2:9..2:12 unknown opcode `iad`
 function %f(i32) -> i32 {
 block0(v0: i32):
     v1 = iad

@@ -1,0 +1,27 @@
+; mode: syntax-tree
+; check: function %first @1:0 unclosed
+; check: block block0 @2:0
+; nextln: inst @3:4 v0 = iconst.i32 1
+; nextln: inst @4:0 garbage here
+; nextln: function %second @5:0 closed
+; check: decl ss0 @8:4 = explicit_slot 4
+; nextln: block block0 @6:0
+; nextln: inst @7:4 <missing> # return )
+; nextln: inst @9:4 jump
+; check: errors:
+; nextln: 1:0..1:8 unclosed function body
+; nextln: 4:0..4:7 unknown opcode `garbage`
+; nextln: 7:4..7:5 unexpected character `#`
+; nextln: 7:13..7:14 unmatched `)`
+; nextln: 10:2..10:7 unexpected tokens after `}`
+
+function %first() {
+block0:
+    v0 = iconst.i32 1
+garbage here
+function %second() {
+block0:
+    # return )
+    ss0 = explicit_slot 4
+    jump
+} extra

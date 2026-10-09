@@ -39,7 +39,7 @@ impl Token {
     }
 }
 
-const ENTITY_PREFIXES: [&str; 7] = ["sig", "fn", "ss", "gv", "const", "jt", "dt"];
+const ENTITY_PREFIXES: [&str; 8] = ["sig", "fn", "ss", "dss", "gv", "const", "jt", "dt"];
 
 fn numbered(word: &str, prefix: &str) -> bool {
     word.strip_prefix(prefix)

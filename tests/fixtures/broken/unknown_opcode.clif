@@ -1,3 +1,7 @@
+; mode: syntax-tree
+; check: inst @2:4 v1 = frobnicate v0
+; check: errors:
+; nextln: 2:9..2:19 unknown opcode `frobnicate`
 function %f(i32) -> i32 {
 block0(v0: i32):
     v1 = frobnicate v0
