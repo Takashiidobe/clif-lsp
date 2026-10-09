@@ -1,0 +1,9 @@
+; mode: opcodes
+; check: iadd: a = iadd x, y [Binary]
+; nextln: return: return rvals [MultiAry]
+; not: frobnicate
+function %f(i32) -> i32 {
+block0(v0: i32):
+    v1 = iadd v0, v0
+    return v1
+}

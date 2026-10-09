@@ -1,0 +1,9 @@
+[package]
+name = "xtask"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+cranelift-codegen = "=0.136.2"
+cranelift-codegen-meta = "=0.136.2"
