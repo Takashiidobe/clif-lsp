@@ -125,3 +125,18 @@ bd prime                # Refresh Beads context
 
 **Architecture in one line:** issues live in a local Dolt DB; sync uses `refs/dolt/data` on your git remote; `.beads/issues.jsonl` is a passive export. See https://github.com/gastownhall/beads/blob/main/docs/core-concepts/sync-concepts.md for details and anti-patterns.
 <!-- END BEADS CODEX SETUP -->
+
+## Conventions & Patterns
+
+### Commits
+
+- Commit once at the end of each bead task, after the quality gates pass and the bead is closed.
+- One-line message, imperative, no body (e.g. `Add tolerant parser for function bodies`).
+- This overrides the Conservative profile above for task-end commits only. Do not push unless asked.
+
+### Testing
+
+- No unit tests: no `#[test]`, no `#[cfg(test)]` modules, no proptest. Correctness is checked by fixtures.
+- Every behavior is covered by a `.clif` fixture under `tests/fixtures/` run through the fixture harness (`cargo test --test fixtures`), which pipes the tool's output through FileCheck-style `; CHECK:` directives (the `filecheck` crate).
+- A bead that adds or changes behavior is not done until a fixture with `CHECK` lines covers it.
+- `; CHECK:`, `; RUN:` and other directive lines are ordinary `;` comments to the lexer/parser. Keep them as comments in the syntax tree.

@@ -1,0 +1,6 @@
+# Fixtures
+
+- `valid/`: CLIF accepted by cranelift-reader. Copied from `../clif2wasm/tests/fixtures` at commit `4ffca63218f69da84aa518a66247db9e5508978a`. `valid/lowering_errors/` is its `error/` directory (valid CLIF that clif2wasm rejects at lowering).
+- `broken/`: hand-written invalid or half-typed input. The parser must recover and never panic.
+
+Expectations are `; CHECK:` lines in each file, run by `cargo test --test fixtures`.

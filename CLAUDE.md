@@ -60,18 +60,26 @@ This protocol applies when ending a Beads implementation workflow. It is subordi
 
 ## Build & Test
 
-_Add your build and test commands here_
-
 ```bash
-# Example:
-# npm install
-# npm test
+cargo build
+cargo test --test fixtures   # runs every tests/fixtures/**/*.clif through its RUN/CHECK directives
 ```
 
 ## Architecture Overview
 
-_Add a brief overview of your project architecture_
+Tolerant lexer/parser for Cranelift IR (CLIF) text, a tower-lsp-server front end, and opcode tables generated from cranelift 0.136.2.
 
 ## Conventions & Patterns
 
-_Add your project-specific conventions here_
+### Commits
+
+- Commit once at the end of each bead task, after the quality gates pass and the bead is closed.
+- One-line message, imperative, no body (e.g. `Add tolerant parser for function bodies`).
+- This overrides the Conservative profile above for task-end commits only. Do not push unless asked.
+
+### Testing
+
+- No unit tests: no `#[test]`, no `#[cfg(test)]` modules, no proptest. Correctness is checked by fixtures.
+- Every behavior is covered by a `.clif` fixture under `tests/fixtures/` run through the fixture harness (`cargo test --test fixtures`), which pipes the tool's output through FileCheck-style `; CHECK:` directives (the `filecheck` crate).
+- A bead that adds or changes behavior is not done until a fixture with `CHECK` lines covers it.
+- `; CHECK:`, `; RUN:` and other directive lines are ordinary `;` comments to the lexer/parser. Keep them as comments in the syntax tree.
