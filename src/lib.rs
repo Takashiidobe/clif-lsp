@@ -2,6 +2,7 @@ pub mod diagnostics;
 pub mod document;
 pub mod lexer;
 pub mod modes;
+pub mod navigation;
 pub mod parser;
 pub mod resolve;
 pub mod server;

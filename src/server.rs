@@ -2,15 +2,17 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use tokio::sync::RwLock;
-use tower_lsp_server::jsonrpc::Result;
+use tower_lsp_server::jsonrpc::{Error, Result};
 use tower_lsp_server::ls_types::{
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams,
-    InitializeResult, Diagnostic, DocumentSymbolParams, DocumentSymbolResponse, OneOf, ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
+    InitializeResult, Diagnostic, DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse, Location, OneOf,
+    PrepareRenameResponse, ReferenceParams, RenameOptions, RenameParams, TextDocumentPositionParams, TextEdit, WorkspaceEdit, ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
 };
 use tower_lsp_server::{Client, LanguageServer};
 
 use crate::diagnostics;
 use crate::document::Document;
+use crate::navigation;
 use crate::symbols;
 
 pub struct Backend {
@@ -34,6 +36,12 @@ impl LanguageServer for Backend {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::INCREMENTAL)),
                 document_symbol_provider: Some(OneOf::Left(true)),
+                definition_provider: Some(OneOf::Left(true)),
+                references_provider: Some(OneOf::Left(true)),
+                rename_provider: Some(OneOf::Right(RenameOptions {
+                    prepare_provider: Some(true),
+                    work_done_progress_options: Default::default(),
+                })),
                 ..ServerCapabilities::default()
             },
             server_info: Some(ServerInfo { name: "clif-lsp".into(), version: Some(env!("CARGO_PKG_VERSION").into()) }),
@@ -70,6 +78,36 @@ impl LanguageServer for Backend {
         let documents = self.documents.read().await;
         let found = documents.get(&params.text_document.uri).map(symbols::document);
         Ok(found.map(DocumentSymbolResponse::Nested))
+    }
+
+    async fn goto_definition(&self, params: GotoDefinitionParams) -> Result<Option<GotoDefinitionResponse>> {
+        let at = params.text_document_position_params;
+        let documents = self.documents.read().await;
+        let found = documents.get(&at.text_document.uri).and_then(|d| navigation::definition(d, at.position));
+        Ok(found.map(|range| GotoDefinitionResponse::Scalar(Location::new(at.text_document.uri, range))))
+    }
+
+    async fn references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
+        let at = params.text_document_position;
+        let documents = self.documents.read().await;
+        let Some(document) = documents.get(&at.text_document.uri) else { return Ok(None) };
+        let ranges = navigation::references(document, at.position, params.context.include_declaration);
+        Ok(Some(ranges.into_iter().map(|r| Location::new(at.text_document.uri.clone(), r)).collect()))
+    }
+
+    async fn prepare_rename(&self, params: TextDocumentPositionParams) -> Result<Option<PrepareRenameResponse>> {
+        let documents = self.documents.read().await;
+        let found = documents.get(&params.text_document.uri).and_then(|d| navigation::prepare_rename(d, params.position));
+        Ok(found.map(|(range, placeholder)| PrepareRenameResponse::RangeWithPlaceholder { range, placeholder }))
+    }
+
+    async fn rename(&self, params: RenameParams) -> Result<Option<WorkspaceEdit>> {
+        let at = params.text_document_position;
+        let documents = self.documents.read().await;
+        let Some(document) = documents.get(&at.text_document.uri) else { return Ok(None) };
+        let edits: Vec<TextEdit> =
+            navigation::rename(document, at.position, &params.new_name).map_err(Error::invalid_params)?;
+        Ok(Some(WorkspaceEdit { changes: Some(HashMap::from([(at.text_document.uri, edits)])), ..WorkspaceEdit::default() }))
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
