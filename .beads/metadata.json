@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "clif_lsp",
+  "project_id": "a1740778-f444-4250-ba97-1d870c3589f9"
+}
