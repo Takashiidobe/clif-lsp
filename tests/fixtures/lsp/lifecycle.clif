@@ -1,0 +1,19 @@
+; mode: lsp
+; lsp: open
+; lsp: change 1:0-1:0 x
+; lsp: request textDocument/hover {"position":{"line":0,"character":0}}
+; lsp: request nope/nothing
+; lsp: close
+; check: initialize -> {
+; check: "textDocumentSync":2
+; check: "name":"clif-lsp"
+; nextln: open
+; nextln: change 1:0-1:0 x
+; nextln: textDocument/hover -> error -32601
+; nextln: nope/nothing -> error -32601
+; nextln: close
+; nextln: shutdown -> null
+; nextln: exit
+function %f() {
+block0:
+}

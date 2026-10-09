@@ -31,7 +31,7 @@ pub fn render(mode: &str, input: &Input) -> Result<String, String> {
     }
 }
 
-const DIRECTIVES: [&str; 7] = ["mode:", "check:", "sameln:", "nextln:", "unordered:", "not:", "regex:"];
+const DIRECTIVES: [&str; 8] = ["mode:", "lsp:", "check:", "sameln:", "nextln:", "unordered:", "not:", "regex:"];
 
 fn is_directive(comment: &str) -> bool {
     let body = comment.trim_start().strip_prefix(';').map(str::trim_start);
@@ -266,8 +266,7 @@ fn render_document(input: &Input) -> Result<String, String> {
 
     let edits: Vec<&Query> = input.queries.iter().filter(|q| q.kind == "edit").collect();
     if !edits.is_empty() {
-        let plain: Vec<&str> = input.source.lines().filter(|l| !is_directive(l) && !is_caret(l)).collect();
-        let mut document = Document::new(&plain.join("\n"));
+        let mut document = Document::new(&plain_text(input.source));
         for edit in edits {
             let (range, text) = parse_edit(&edit.args)?;
             document.apply(Some(range), &text);
@@ -278,11 +277,15 @@ fn render_document(input: &Input) -> Result<String, String> {
     Ok(out)
 }
 
+pub fn plain_text(source: &str) -> String {
+    source.lines().filter(|l| !is_directive(l) && !is_caret(l)).collect::<Vec<_>>().join("\n")
+}
+
 fn is_caret(line: &str) -> bool {
     line.trim_start().strip_prefix(';').is_some_and(|rest| rest.trim_start().starts_with('^'))
 }
 
-fn parse_edit(args: &str) -> Result<(Range, String), String> {
+pub fn parse_edit(args: &str) -> Result<(Range, String), String> {
     let bad = || format!("bad edit `{args}`, expected `L:C-L:C text`");
     let (range, text) = args.split_once(' ').unwrap_or((args, ""));
     let (start, end) = range.split_once('-').ok_or_else(bad)?;

@@ -4,6 +4,8 @@ use std::process::ExitCode;
 
 #[path = "harness/invariants.rs"]
 mod invariants;
+#[path = "harness/lsp.rs"]
+mod lsp;
 #[path = "harness/oracle.rs"]
 mod oracle;
 #[path = "harness/tables.rs"]
@@ -66,7 +68,7 @@ fn run(relative: &str, path: &Path) -> Result<(), String> {
 
     let mut output = String::new();
     for mode in modes_of(&source) {
-        let rendered = modes::render(&mode, &input)?;
+        let rendered = if mode == "lsp" { lsp::render(&source)? } else { modes::render(&mode, &input)? };
         output.push_str(&format!("=== {mode} ===\n{rendered}\n"));
     }
 
