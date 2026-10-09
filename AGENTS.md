@@ -137,6 +137,6 @@ bd prime                # Refresh Beads context
 ### Testing
 
 - No unit tests: no `#[test]`, no `#[cfg(test)]` modules, no proptest. Correctness is checked by fixtures.
-- Every behavior is covered by a `.clif` fixture under `tests/fixtures/` run through the fixture harness (`cargo test --test fixtures`), which pipes the tool's output through FileCheck-style `; CHECK:` directives (the `filecheck` crate).
-- A bead that adds or changes behavior is not done until a fixture with `CHECK` lines covers it.
-- `; CHECK:`, `; RUN:` and other directive lines are ordinary `;` comments to the lexer/parser. Keep them as comments in the syntax tree.
+- Every behavior is covered by a `.clif` fixture under `tests/fixtures/` run through the fixture harness (`cargo test --test fixtures`), which pipes the tool's output through FileCheck-style `; check:`, `; nextln:`, `; sameln:`, `; not:` directives (the `filecheck` crate, same syntax as Cranelift's own tests).
+- A bead that adds or changes behavior is not done until a fixture with `check:` lines covers it.
+- `; check:`, `; mode:` and other directive lines are ordinary `;` comments to the lexer/parser. Keep them as comments in the syntax tree.

@@ -1,0 +1,11 @@
+[package]
+name = "clif-lsp"
+version = "0.1.0"
+edition = "2024"
+
+[dev-dependencies]
+filecheck = "0.5.0"
+
+[[test]]
+name = "fixtures"
+harness = false

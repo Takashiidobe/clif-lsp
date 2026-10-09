@@ -1,0 +1,12 @@
+; mode: source
+; check: === source ===
+; nextln: function %f
+; sameln: () -> i32
+; check: return v0
+; not: check
+; not: frobnicate
+function %f() -> i32 {
+block0:
+    v0 = iconst.i32 7
+    return v0
+}
