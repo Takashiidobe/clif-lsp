@@ -6,3 +6,5 @@
 Expectations are `; CHECK:` lines in each file, run by `cargo test --test fixtures`.
 
 `tokens` mode positions are `line:byte-column`, with line 0 being the first line after the leading block of directive comments. Directive comments print as `Comment "<directive>"` so checks cannot match themselves.
+
+The harness also runs invariants on every fixture, whatever its `mode:`: the lexer tiles the input exactly, the parser does not panic, and every span is in bounds on char boundaries. These are re-checked on every char-boundary prefix of the file.

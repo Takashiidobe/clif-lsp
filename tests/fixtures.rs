@@ -2,6 +2,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+#[path = "harness/invariants.rs"]
+mod invariants;
+
 use clif_lsp::modes::{self, Input, Query};
 use filecheck::{CheckerBuilder, NO_VARIABLES};
 
@@ -52,6 +55,7 @@ fn queries_of(source: &str) -> Vec<Query> {
 
 fn run(path: &Path) -> Result<(), String> {
     let source = fs::read_to_string(path).map_err(|e| e.to_string())?;
+    invariants::check(&source).map_err(|e| format!("invariant: {e}"))?;
     let queries = queries_of(&source);
     let input = Input { source: &source, queries: &queries };
 
