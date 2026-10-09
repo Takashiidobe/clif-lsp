@@ -4,3 +4,5 @@
 - `broken/`: hand-written invalid or half-typed input. The parser must recover and never panic.
 
 Expectations are `; CHECK:` lines in each file, run by `cargo test --test fixtures`.
+
+`tokens` mode positions are `line:byte-column`, with line 0 being the first line after the leading block of directive comments. Directive comments print as `Comment "<directive>"` so checks cannot match themselves.

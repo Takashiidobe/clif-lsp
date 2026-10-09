@@ -1,0 +1,18 @@
+; mode: tokens
+; check: Comment "<directive>"
+; check: 0:0 Comment "; run: %f() == 1"
+; nextln: 1:0 Comment "; entry: %f"
+; nextln: 2:0 Ident "function"
+; check: 4:9 Ident "iconst"
+; nextln: 4:15 Dot "."
+; nextln: 4:16 Ident "i32"
+; nextln: 4:20 Number "1"
+; nextln: 4:22 Comment "; trailing"
+; not: Unknown
+; run: %f() == 1
+; entry: %f
+function %f() -> i32 {
+block0:
+    v0 = iconst.i32 1 ; trailing
+    return v0
+}

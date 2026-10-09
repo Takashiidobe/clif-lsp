@@ -1,0 +1,31 @@
+; mode: tokens
+; check: 2:20 Number "42"
+; check: 3:20 Number "-7"
+; check: 4:20 Number "0xDEAD_beef"
+; check: 5:18 Number "1.5"
+; check: 6:18 Number "0x1.0p100"
+; check: 7:18 Number "-0x1.8p-3"
+; check: 8:18 Number "1e-9"
+; check: 9:18 Number "+Inf"
+; check: 10:18 Number "-Inf"
+; check: 11:18 Ident "NaN"
+; check: 12:4 At "@"
+; nextln: 12:5 Number "0001"
+; check: 13:4 Number "-4"
+; nextln: 13:7 Arrow "->"
+; not: Unknown
+function %f() {
+block0:
+    v0 = iconst.i32 42
+    v1 = iconst.i32 -7
+    v2 = iconst.i64 0xDEAD_beef
+    v3 = f64const 1.5
+    v4 = f64const 0x1.0p100
+    v5 = f64const -0x1.8p-3
+    v6 = f64const 1e-9
+    v7 = f64const +Inf
+    v8 = f64const -Inf
+    v9 = f64const NaN
+    @0001
+    -4 ->
+}

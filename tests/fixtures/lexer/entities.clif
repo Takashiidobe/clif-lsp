@@ -1,0 +1,33 @@
+; mode: tokens
+; check: 1:4 Entity "sig0"
+; nextln: 1:9 Eq "="
+; check: 2:4 Entity "fn0"
+; nextln: 2:8 Eq "="
+; nextln: 2:10 FuncName "%callee"
+; nextln: 2:18 Entity "sig0"
+; check: 3:4 Entity "ss0"
+; check: 4:4 Entity "gv0"
+; check: 5:4 Entity "jt0"
+; check: 6:4 Entity "dt0"
+; nextln: 6:8 Eq "="
+; nextln: 6:10 Ident "i8x16"
+; nextln: 6:16 Star "*"
+; nextln: 6:18 Entity "gv0"
+; check: 7:4 Entity "const0"
+; check: 8:0 Block "block12"
+; check: 9:4 Ident "block"
+; check: 9:10 Ident "v"
+; check: 9:12 Ident "ssx"
+; check: 9:16 Value "v007"
+; not: Unknown
+function %f() {
+    sig0 = (i32) -> i32
+    fn0 = %callee sig0
+    ss0 = explicit_slot 4
+    gv0 = vmctx
+    jt0 = [block1, block2]
+    dt0 = i8x16 * gv0
+    const0 = 0x00
+block12:
+    block v ssx v007
+}

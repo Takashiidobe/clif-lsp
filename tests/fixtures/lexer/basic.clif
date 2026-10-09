@@ -1,0 +1,29 @@
+; mode: tokens
+; check: 0:0 Ident "function"
+; nextln: 0:9 FuncName "%add"
+; nextln: 0:13 LParen "("
+; nextln: 0:14 Ident "i32"
+; nextln: 0:17 Comma ","
+; nextln: 0:19 Ident "i32"
+; nextln: 0:22 RParen ")"
+; nextln: 0:24 Arrow "->"
+; nextln: 0:27 Ident "i32"
+; nextln: 0:31 LBrace "{"
+; nextln: 1:0 Block "block0"
+; nextln: 1:6 LParen "("
+; nextln: 1:7 Value "v0"
+; nextln: 1:9 Colon ":"
+; nextln: 1:11 Ident "i32"
+; check: 2:4 Value "v2"
+; nextln: 2:7 Eq "="
+; nextln: 2:9 Ident "iadd"
+; nextln: 2:14 Value "v0"
+; nextln: 2:16 Comma ","
+; nextln: 2:18 Value "v1"
+; check: 3:4 Ident "return"
+; check: 4:0 RBrace "}"
+function %add(i32, i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = iadd v0, v1
+    return v2
+}

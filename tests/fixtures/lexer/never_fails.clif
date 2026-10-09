@@ -1,0 +1,13 @@
+; mode: tokens
+; check: 0:0 Ident "v"
+; nextln: 0:2 Unknown "#"
+; nextln: 0:5 Unknown "é"
+; nextln: 0:8 String "\"open"
+; nextln: 1:0 Ident "after"
+; nextln: 1:6 Unknown "-"
+; nextln: 2:0 Ident "crlf"
+; nextln: 3:0 Ident "next"
+v #  é "open
+after -
+crlf
+next
