@@ -1,0 +1,24 @@
+; mode: lsp
+; lsp: open
+; lsp: request textDocument/documentSymbol
+; check: "detail":"explicit_slot 8","kind":13,"name":"ss0"
+; check: "detail":"(i32) -> i32","kind":11,"name":"sig0"
+; check: "detail":"%other sig0","kind":6,"name":"fn0"
+; check: "detail":"(v0: i32, v1: i32)","kind":3,"name":"block0","range":{"end":{"character":19,"line":6},"start":{"character":0,"line":4}},"selectionRange":{"end":{"character":6,"line":4}
+; check: "detail":"function %add(i32, i32) -> i32","kind":12,"name":"%add","range":{"end":{"character":1,"line":9},"start":{"character":0,"line":0}}
+; check: "detail":"function %second()","kind":12,"name":"%second"
+function %add(i32, i32) -> i32 {
+    ss0 = explicit_slot 8
+    sig0 = (i32) -> i32
+    fn0 = %other sig0
+block0(v0: i32, v1: i32):
+    v2 = iadd v0, v1
+    jump block1(v2)
+block1(v3: i32):
+    return v3
+}
+
+function %second() {
+block0:
+    return
+}

@@ -5,12 +5,13 @@ use tokio::sync::RwLock;
 use tower_lsp_server::jsonrpc::Result;
 use tower_lsp_server::ls_types::{
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams,
-    InitializeResult, Diagnostic, ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
+    InitializeResult, Diagnostic, DocumentSymbolParams, DocumentSymbolResponse, OneOf, ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
 };
 use tower_lsp_server::{Client, LanguageServer};
 
 use crate::diagnostics;
 use crate::document::Document;
+use crate::symbols;
 
 pub struct Backend {
     client: Client,
@@ -32,6 +33,7 @@ impl LanguageServer for Backend {
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::INCREMENTAL)),
+                document_symbol_provider: Some(OneOf::Left(true)),
                 ..ServerCapabilities::default()
             },
             server_info: Some(ServerInfo { name: "clif-lsp".into(), version: Some(env!("CARGO_PKG_VERSION").into()) }),
@@ -62,6 +64,12 @@ impl LanguageServer for Backend {
             diagnostics::all(document)
         };
         self.publish(uri, Some(params.text_document.version), found).await;
+    }
+
+    async fn document_symbol(&self, params: DocumentSymbolParams) -> Result<Option<DocumentSymbolResponse>> {
+        let documents = self.documents.read().await;
+        let found = documents.get(&params.text_document.uri).map(symbols::document);
+        Ok(found.map(DocumentSymbolResponse::Nested))
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {

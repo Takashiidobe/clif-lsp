@@ -5,5 +5,6 @@ pub mod modes;
 pub mod parser;
 pub mod resolve;
 pub mod server;
+pub mod symbols;
 pub mod syntax;
 pub mod tables;

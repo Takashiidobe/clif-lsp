@@ -1,0 +1,10 @@
+; mode: lsp
+; lsp: open
+; lsp: request textDocument/documentSymbol
+; check: "name":"block0"
+; check: "detail":"function %half()","kind":12,"name":"%half"
+; check: "detail":"function %next()","kind":12,"name":"%next"
+function %half() {
+block0:
+    v0 = iconst.i32 1
+function %next() {
