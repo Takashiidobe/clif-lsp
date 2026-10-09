@@ -1,10 +1,12 @@
 use clif_lsp::parser::parse;
+use clif_lsp::resolve::resolve;
 use clif_lsp::syntax::Item;
 
 pub fn check(relative_path: &str, source: &str) -> Result<(), String> {
     let ours = parse(source);
     let reference = cranelift_reader::parse_functions(source);
     let strict = relative_path.starts_with("valid/");
+    let unresolved = resolve(&ours, source).problems;
 
     match reference {
         Err(error) if ours.errors.is_empty() && strict => {
@@ -14,6 +16,10 @@ pub fn check(relative_path: &str, source: &str) -> Result<(), String> {
         Ok(_) if !ours.errors.is_empty() => Err(format!(
             "cranelift-reader accepts this file but we report: {}",
             ours.errors.iter().map(|e| e.message.as_str()).collect::<Vec<_>>().join("; ")
+        )),
+        Ok(_) if !unresolved.is_empty() => Err(format!(
+            "cranelift-reader accepts this file but name resolution reports: {}",
+            unresolved.iter().map(|p| p.message.as_str()).collect::<Vec<_>>().join("; ")
         )),
         Ok(functions) if strict => {
             let mut counts = (0, 0, 0);

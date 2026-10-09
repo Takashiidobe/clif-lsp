@@ -1,0 +1,19 @@
+; mode: resolve
+; check: @0:9 def function %a
+; nextln: @1:0 def block block0
+; nextln: @1:7 def value v0
+; check: @5:9 def function %b
+; check: @6:7 def value v0
+; nextln: @7:11 use value v0 -> @6:7
+; check: problems:
+; not: undefined
+; not: more than once
+function %a(i32) {
+block0(v0: i32):
+    return
+}
+
+function %b(i32) -> i32 {
+block0(v0: i32):
+    return v0
+}

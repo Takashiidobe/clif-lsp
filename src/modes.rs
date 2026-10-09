@@ -1,5 +1,6 @@
 use crate::lexer::{self, Token, TokenKind};
 use crate::parser;
+use crate::resolve;
 use crate::syntax::{Item, Span};
 
 pub struct Query {
@@ -17,6 +18,7 @@ pub struct Input<'a> {
 pub fn render(mode: &str, input: &Input) -> Result<String, String> {
     match mode {
         "tokens" => render_tokens(input.source),
+        "resolve" => Ok(render_resolution(input.source)),
         "syntax-tree" => Ok(render_syntax_tree(input.source)),
         "opcodes" => Ok(render_opcodes(&strip_directives(input.source))),
         "source" => Ok(strip_directives(input.source)),
@@ -180,6 +182,40 @@ fn render_syntax_tree(source: &str) -> String {
     out.push_str(&format!("  {} directive comments\n", directives.len()));
     for comment in plain {
         out.push_str(&format!("  @{} {:?}\n", pos.at(comment.start), comment.text(source)));
+    }
+    out
+}
+
+fn render_resolution(source: &str) -> String {
+    let file = parser::parse(source);
+    let resolution = resolve::resolve(&file, source);
+    let pos = Positions::new(source);
+
+    let mut lines: Vec<(usize, String)> = Vec::new();
+    for def in &resolution.defs {
+        lines.push((def.span.start, format!("@{} def {} {}", pos.at(def.span.start), def.kind.label(), def.name)));
+    }
+    for usage in &resolution.uses {
+        let target = match usage.def {
+            Some(id) => format!("@{}", pos.at(resolution.defs[id].span.start)),
+            None if usage.kind == resolve::NameKind::Function => "<external>".to_owned(),
+            None => "<undefined>".to_owned(),
+        };
+        lines.push((
+            usage.span.start,
+            format!("@{} use {} {} -> {target}", pos.at(usage.span.start), usage.kind.label(), usage.name),
+        ));
+    }
+    lines.sort_by_key(|(start, _)| *start);
+
+    let mut out = String::new();
+    for (_, line) in lines {
+        out.push_str(&line);
+        out.push('\n');
+    }
+    out.push_str("problems:\n");
+    for problem in &resolution.problems {
+        out.push_str(&format!("  {} {}\n", pos.range(problem.span), problem.message));
     }
     out
 }

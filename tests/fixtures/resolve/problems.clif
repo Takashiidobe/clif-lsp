@@ -1,0 +1,20 @@
+; mode: resolve
+; check: @2:18 use value v9 -> <undefined>
+; check: @3:9 use block block7 -> <undefined>
+; check: @4:9 use entity fn3 -> <undefined>
+; check: @7:11 use value v1 -> @2:4
+; check: problems:
+; nextln: 2:18..2:20 undefined value `v9`
+; nextln: 3:9..3:15 undefined block `block7`
+; nextln: 4:9..4:12 undefined entity `fn3`
+; nextln: 5:4..5:6 value `v1` is defined more than once
+; nextln: 6:0..6:6 block `block0` is defined more than once
+function %f(i32) -> i32 {
+block0(v0: i32):
+    v1 = iadd v0, v9
+    jump block7(v1)
+    call fn3(v1)
+    v1 = iconst.i32 2
+block0:
+    return v1
+}

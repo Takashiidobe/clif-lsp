@@ -1,0 +1,31 @@
+; mode: resolve
+; check: @0:9 def function %helper
+; check: @5:9 def function %main
+; nextln: @6:4 def entity sig0
+; nextln: @7:4 def entity fn0
+; nextln: @7:10 use function %helper -> @0:9
+; nextln: @7:18 use entity sig0 -> @6:4
+; nextln: @8:4 def entity ss0
+; nextln: @9:0 def block block0
+; check: @10:24 use entity ss0 -> @8:4
+; check: @11:14 use entity fn0 -> @7:4
+; check: @12:23 use entity sig0 -> @6:4
+; check: @13:9 use function %missing -> <external>
+; check: problems:
+; not: undefined
+function %helper(i32) -> i32 {
+block0(v0: i32):
+    return v0
+}
+
+function %main(i32) -> i32 {
+    sig0 = (i32) -> i32
+    fn0 = %helper sig0
+    ss0 = explicit_slot 4
+block0(v0: i32):
+    v1 = stack_addr.i64 ss0
+    v2 = call fn0(v0)
+    v3 = call_indirect sig0, v1(v2)
+    call %missing(v3)
+    return v3
+}

@@ -10,3 +10,5 @@ Expectations are `; CHECK:` lines in each file, run by `cargo test --test fixtur
 The harness also runs invariants on every fixture, whatever its `mode:`: the lexer tiles the input exactly, the parser does not panic, and every span is in bounds on char boundaries. These are re-checked on every char-boundary prefix of the file.
 
 Against `cranelift-reader` (0.136.2): if we report any syntax error on a file, the reader must reject it too. For files under `valid/` the reader must accept, we must report no errors, and function, block and instruction counts must match.
+
+Whenever the reader accepts a file, name resolution must report no problems for it.

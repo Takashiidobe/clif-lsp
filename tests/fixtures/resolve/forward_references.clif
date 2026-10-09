@@ -1,0 +1,15 @@
+; mode: resolve
+; check: @2:9 use block block2 -> @5:0
+; check: @4:11 use value v2 -> @6:4
+; check: @7:9 use block block1 -> @3:0
+; check: problems:
+; not: undefined
+function %f() -> i32 {
+block0:
+    jump block2
+block1:
+    return v2
+block2:
+    v2 = iconst.i32 1
+    jump block1
+}

@@ -1,0 +1,15 @@
+; mode: resolve
+; check: @0:9 def function %callee
+; nextln: @1:0 def block block0
+; nextln: @1:7 def value v0
+; nextln: @2:4 def value v1
+; nextln: @2:14 use value v0 -> @1:7
+; nextln: @2:18 use value v0 -> @1:7
+; nextln: @3:11 use value v1 -> @2:4
+; nextln: problems:
+; not: undefined
+function %callee(i32) -> i32 {
+block0(v0: i32):
+    v1 = iadd v0, v0
+    return v1
+}
