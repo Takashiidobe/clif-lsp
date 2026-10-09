@@ -4,6 +4,8 @@ use std::process::ExitCode;
 
 #[path = "harness/invariants.rs"]
 mod invariants;
+#[path = "harness/oracle.rs"]
+mod oracle;
 
 use clif_lsp::modes::{self, Input, Query};
 use filecheck::{CheckerBuilder, NO_VARIABLES};
@@ -53,9 +55,10 @@ fn queries_of(source: &str) -> Vec<Query> {
     queries
 }
 
-fn run(path: &Path) -> Result<(), String> {
+fn run(relative: &str, path: &Path) -> Result<(), String> {
     let source = fs::read_to_string(path).map_err(|e| e.to_string())?;
     invariants::check(&source).map_err(|e| format!("invariant: {e}"))?;
+    oracle::check(relative, &source).map_err(|e| format!("oracle: {e}"))?;
     let queries = queries_of(&source);
     let input = Input { source: &source, queries: &queries };
 
@@ -93,7 +96,7 @@ fn main() -> ExitCode {
         if filter.as_ref().is_some_and(|f| !name.contains(f.as_str())) {
             continue;
         }
-        match run(&path) {
+        match run(&name, &path) {
             Ok(()) => passed += 1,
             Err(msg) => {
                 failed += 1;

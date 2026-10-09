@@ -18,6 +18,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
+name = "anyhow"
+version = "1.0.104"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
+
+[[package]]
 name = "arbitrary"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -36,6 +42,7 @@ dependencies = [
 name = "clif-lsp"
 version = "0.1.0"
 dependencies = [
+ "cranelift-reader",
  "filecheck",
 ]
 
@@ -145,6 +152,18 @@ name = "cranelift-isle"
 version = "0.136.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a2f30ea3fd5a11f7d3473976d3b62b5b3f2b62fa943c85e0331d88bf505082c"
+
+[[package]]
+name = "cranelift-reader"
+version = "0.136.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3bef59b8d8d0d10bb17d492f9bcefe9655fa20042cc0aa35aef2cdb23a2c4ef6"
+dependencies = [
+ "anyhow",
+ "cranelift-codegen",
+ "smallvec",
+ "target-lexicon",
+]
 
 [[package]]
 name = "cranelift-srcgen"
