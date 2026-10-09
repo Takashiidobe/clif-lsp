@@ -63,6 +63,7 @@ This protocol applies when ending a Beads implementation workflow. It is subordi
 ```bash
 cargo build
 cargo run -p xtask -- gen-opcodes   # regenerate src/tables/opcodes.rs from cranelift 0.136.2
+cargo run -p xtask -- gen-types     # regenerate src/tables/types.rs and codes.rs
 cargo test --test fixtures   # runs every tests/fixtures/**/*.clif through its mode/check directives
 ```
 

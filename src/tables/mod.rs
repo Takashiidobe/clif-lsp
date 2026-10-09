@@ -1,4 +1,15 @@
+pub mod codes;
 pub mod opcodes;
+pub mod types;
+
+pub struct NameInfo {
+    pub name: &'static str,
+    pub doc: &'static str,
+}
+
+pub fn lookup(table: &'static [NameInfo], name: &str) -> Option<&'static NameInfo> {
+    table.iter().find(|entry| entry.name == name)
+}
 
 pub struct OpcodeInfo {
     pub name: &'static str,

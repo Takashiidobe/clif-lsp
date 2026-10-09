@@ -1,0 +1,32 @@
+; mode: names
+; check: i32: type "An integer type with 32 bits."
+; nextln: f64: type
+; nextln: i8x16: type "A SIMD vector with 16 lanes containing a `i8` each."
+; nextln: f32x4xN: type "A dynamically-scaled SIMD vector
+; nextln: i128: type
+; nextln: tail: callconv "tail"
+; check: eq: intcc "equal"; floatcc "equal"
+; nextln: sgt: intcc "signed greater than"
+; nextln: ugt: intcc "unsigned greater than"
+; nextln: ord: floatcc "ordered"
+; nextln: ueq: floatcc "unordered or equal"
+; check: int_divz: trap "An integer division by zero."
+; nextln: stk_ovf: trap
+; check: notrap: memflag "The access cannot trap."
+; nextln: aligned: memflag
+; nextln: system_v: callconv "system v"
+; not: frobnicate
+; not: i33
+function %f(i32, f64, i8x16, f32x4xN, i128) tail {
+block0(v0: i32):
+    v1 = icmp eq v0, v0
+    v2 = icmp sgt v0, v0
+    v3 = icmp ugt v0, v0
+    v4 = fcmp ord v0, v0
+    v5 = fcmp ueq v0, v0
+    trapz v1, int_divz
+    trapnz v1, stk_ovf
+    v6 = load.i32 notrap aligned v0
+    return
+}
+; system_v

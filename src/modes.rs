@@ -20,6 +20,7 @@ pub fn render(mode: &str, input: &Input) -> Result<String, String> {
         "tokens" => render_tokens(input.source),
         "resolve" => Ok(render_resolution(input.source)),
         "syntax-tree" => Ok(render_syntax_tree(input.source)),
+        "names" => Ok(render_names(&strip_directives(input.source))),
         "opcodes" => Ok(render_opcodes(&strip_directives(input.source))),
         "source" => Ok(strip_directives(input.source)),
         _ => Err(format!("unknown mode `{mode}`")),
@@ -216,6 +217,29 @@ fn render_resolution(source: &str) -> String {
     out.push_str("problems:\n");
     for problem in &resolution.problems {
         out.push_str(&format!("  {} {}\n", pos.range(problem.span), problem.message));
+    }
+    out
+}
+
+fn render_names(source: &str) -> String {
+    use crate::tables::{codes, lookup, types};
+    let categories = [
+        ("type", types::TYPES),
+        ("intcc", codes::INT_CC),
+        ("floatcc", codes::FLOAT_CC),
+        ("trap", codes::TRAP_CODES),
+        ("memflag", codes::MEM_FLAGS),
+        ("callconv", codes::CALL_CONVS),
+    ];
+    let mut out = String::new();
+    for word in source.split(|c: char| !c.is_alphanumeric() && c != '_') {
+        let hits: Vec<String> = categories
+            .iter()
+            .filter_map(|(label, table)| lookup(table, word).map(|e| format!("{label} {:?}", e.doc)))
+            .collect();
+        if !hits.is_empty() {
+            out.push_str(&format!("{word}: {}\n", hits.join("; ")));
+        }
     }
     out
 }
