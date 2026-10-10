@@ -1,0 +1,47 @@
+; mode: lsp
+; lsp: open
+; lsp: actions 3:4-3:4
+; lsp: actions 5:4-5:4
+; lsp: actions 7:4-7:4
+; lsp: actions 2:4-2:4
+; lsp: actions 1:0-1:0
+; lsp: actions 14:4-14:4
+; lsp: actions 19:4-19:4
+; check: actions 3:4-3:4
+; nextln: Collapse `brif` into `jump` [refactor.rewrite] 3:4-3:27 "jump block1"
+; nextln: Move trailing instructions into new block `block3` [refactor.rewrite] 3:0-3:0 "    jump block3\nblock3:\n"
+; check: actions 5:4-5:4
+; nextln: Reuse `v2` for duplicate constant [refactor.rewrite] 6:14-6:16 "v2"; 5:0-6:0 ""
+; nextln: actions 7:4-7:4
+; nextln: Collapse `brif` into `jump` [refactor.rewrite] 7:4-7:35 "jump block2(v4)"
+; nextln: Move trailing instructions into new block `block3` [refactor.rewrite] 7:0-7:0 "    jump block3\nblock3:\n"
+; check: actions 2:4-2:4
+; nextln: (none)
+; check: actions 1:0-1:0
+; nextln: (none)
+; check: actions 14:4-14:4
+; nextln: (none)
+; check: actions 19:4-19:4
+; nextln: (none)
+function %f(i32, i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = iconst.i32 7
+    brif v0, block1, block1
+block1:
+    v3 = iconst.i32 7
+    v4 = iadd v3, v0
+    brif v0, block2(v4), block2(v4)
+block2(v5: i32):
+    v6 = iadd v5, v2
+    return v6
+}
+function %g(i32) {
+block0(v0: i32):
+    brif v0, block1, block2
+block1:
+    v1 = iconst.i32 1
+    return
+block2:
+    v2 = iconst.i32 1
+    return
+}

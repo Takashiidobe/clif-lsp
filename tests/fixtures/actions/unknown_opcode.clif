@@ -7,7 +7,7 @@
 ; check: actions 2:9-2:9
 ; nextln: Change to `iadd` [quickfix] (preferred) 2:9-2:14 "iadd"
 ; check: actions 3:4-3:4
-; nextln: (none)
+; nextln: Move trailing instructions into new block `block1` [refactor.rewrite] 3:0-3:0 "    jump block1\nblock1:\n"
 function %f(i32) -> i32 {
 block0(v0: i32):
     v1 = iaddd v0, v0

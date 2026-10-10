@@ -1,0 +1,34 @@
+; mode: lsp
+; lsp: open
+; lsp: actions 4:18-4:20
+; lsp: actions 5:11-5:13
+; lsp: actions 7:16-7:18
+; lsp: actions 9:18-9:20
+; lsp: actions 11:19-11:21
+; lsp: actions 2:18-2:20
+; check: actions 4:18-4:20
+; check: Add block parameter `v8: i32` to `block1` [quickfix] 3:14-3:14 ", v8: i32"
+; check: actions 5:11-5:13
+; check: Add block parameter `v9: i32` to `block1` [quickfix] 3:14-3:14 ", v9: i32"
+; check: actions 7:16-7:18
+; check: Add block parameter `v5: i32` to `block2` [quickfix] 6:6-6:6 "(v5: i32)"
+; check: actions 9:18-9:20
+; check: Add block parameter `v8: i32` to `block3` [quickfix] 8:7-8:7 "v8: i32"
+; check: actions 11:19-11:21
+; nextln: (none)
+; check: actions 2:18-2:20
+; not: Add block parameter
+function %g(i32) -> i32 {
+block0(v0: i32):
+    v7 = iadd v0, v6
+block1(v1: i32):
+    v2 = iadd v1, v8
+    return v9
+block2:
+    jump block1(v5)
+block3():
+    v3 = iadd v1, v8
+block4:
+    v4 = ineg v6
+    return v4
+}

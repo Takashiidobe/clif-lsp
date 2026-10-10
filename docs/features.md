@@ -85,10 +85,24 @@ Quick fixes attach to the diagnostic they solve:
   Edit them after.
 - **Insert `return` / Insert `trap user1`**: ends a block that has no
   terminator. `return` is only offered when the function returns nothing.
+- **Add block parameter `v: type`**: for a value used but never defined in a
+  block other than the entry block. The type comes from the signature for
+  `return`, from the target block's parameter for a branch argument, or from a
+  block parameter used in the same `iadd`-style instruction. If none applies, the
+  action is not offered. Branches into the block are not updated, so the
+  verifier will report the missing arguments afterwards.
 
 Refactor:
 
 - **Remove unused `name`**: deletes a declaration that nothing uses.
+- **Collapse `brif` into `jump`**: when both targets, arguments included, are
+  the same.
+- **Reuse `vN` for duplicate constant**: on an `iconst` that repeats an earlier
+  identical `iconst` in the same block or in a block that dominates it. Uses of
+  the duplicate are renamed and its line is deleted.
+- **Move trailing instructions into new block**: splits the block before the
+  instruction under the cursor with a `jump` to a new `blockN`. Not offered on
+  the first instruction of a block.
 
 ## Formatting
 

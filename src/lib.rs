@@ -14,6 +14,7 @@ pub mod modes;
 pub mod navigation;
 pub mod parser;
 pub mod ranges;
+pub mod refactors;
 pub mod resolve;
 pub mod semantic;
 pub mod signature;

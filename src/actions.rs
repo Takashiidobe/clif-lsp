@@ -5,6 +5,7 @@ use tower_lsp_server::ls_types::{CodeAction, CodeActionKind, CodeActionOrCommand
 use crate::diagnostics;
 use crate::document::Document;
 use crate::navigation;
+use crate::refactors;
 use crate::resolve::NameKind;
 use crate::syntax::{Function, Item, Span};
 use crate::tables::{self, opcodes};
@@ -38,17 +39,21 @@ fn nearest<'a>(name: &str, candidates: impl Iterator<Item = &'a str>) -> Vec<&'a
 }
 
 fn action(uri: &Uri, kind: CodeActionKind, title: String, linked: &[Diagnostic], edit: TextEdit, preferred: bool) -> CodeActionOrCommand {
+    action_edits(uri, kind, title, linked, vec![edit], preferred)
+}
+
+pub(crate) fn action_edits(uri: &Uri, kind: CodeActionKind, title: String, linked: &[Diagnostic], edits: Vec<TextEdit>, preferred: bool) -> CodeActionOrCommand {
     CodeActionOrCommand::CodeAction(CodeAction {
         title,
         kind: Some(kind),
         diagnostics: Some(linked.to_vec()),
-        edit: Some(WorkspaceEdit { changes: Some(HashMap::from([(uri.clone(), vec![edit])])), ..WorkspaceEdit::default() }),
+        edit: Some(WorkspaceEdit { changes: Some(HashMap::from([(uri.clone(), edits)])), ..WorkspaceEdit::default() }),
         is_preferred: Some(preferred),
         ..CodeAction::default()
     })
 }
 
-fn overlaps(a: Range, b: Range) -> bool {
+pub(crate) fn overlaps(a: Range, b: Range) -> bool {
     a.start <= b.end && b.start <= a.end
 }
 
@@ -68,14 +73,14 @@ fn unknown_opcodes(document: &Document) -> Vec<Span> {
         .collect()
 }
 
-fn functions(document: &Document) -> impl Iterator<Item = (usize, &Function)> {
+pub(crate) fn functions(document: &Document) -> impl Iterator<Item = (usize, &Function)> {
     document.file().items.iter().enumerate().filter_map(|(index, item)| match item {
         Item::Function(function) => Some((index, function)),
         Item::Directive(_) => None,
     })
 }
 
-fn line_start(document: &Document, offset: usize) -> usize {
+pub(crate) fn line_start(document: &Document, offset: usize) -> usize {
     document.text()[..offset].rfind('\n').map_or(0, |n| n + 1)
 }
 
@@ -194,5 +199,6 @@ pub fn at(document: &Document, uri: &Uri, range: Range) -> Vec<CodeActionOrComma
     undefined_name_fixes(document, uri, range, &published, &mut actions);
     missing_terminator_fixes(document, uri, range, &published, &mut actions);
     unused_declaration_fixes(document, uri, range, &mut actions);
+    refactors::at(document, uri, range, &published, &mut actions);
     actions
 }

@@ -36,7 +36,8 @@ launch a stdio language server works the same way.
 - **Signature help** for opcodes and calls.
 - **Inlay hints** for inferred result types and branch argument names.
 - **Code actions**: fix unknown opcodes and undefined names, add missing
-  terminators, remove unused declarations.
+  terminators, add block parameters, remove unused declarations, collapse
+  `brif`, reuse duplicate constants, split blocks.
 - **Formatting** of whole documents and ranges.
 - **Folding, selection ranges, and semantic tokens.**
 - **Custom requests** for the control flow graph, dominance and liveness, and
