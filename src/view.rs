@@ -3,11 +3,13 @@ use serde_json::Value;
 
 use crate::analysis::{self, FunctionAnalysis};
 use crate::cfg;
+use crate::def_use;
 use crate::document::Document;
 use crate::egraph;
 use crate::provenance::{self, Status};
 use crate::regalloc::{self, Event};
 use crate::stages::{self, Stage};
+use crate::syntax::{Function, Item};
 
 pub const SCHEMA: u32 = 1;
 
@@ -36,12 +38,13 @@ pub struct TreeNode {
     pub children: Vec<TreeNode>,
 }
 
-const VIEWS: [&str; 7] = ["cfg", "analysis", "stage", "allocators", "regalloc", "provenance", "egraph"];
+const VIEWS: [&str; 8] = ["cfg", "analysis", "def_use", "stage", "allocators", "regalloc", "provenance", "egraph"];
 
 pub fn render(document: &Document, view: &str, function: Option<&str>, args: &Value) -> Result<View, String> {
     match view {
         "cfg" => cfg_view(document, function),
         "analysis" => analysis_view(document, function),
+        "def_use" => def_use_view(document, function, args),
         "stage" => stage_view(document, function, args),
         "allocators" => allocators_view(document, function),
         "regalloc" => regalloc_view(document, function),
@@ -123,6 +126,42 @@ fn dominator_tree(analysis: &FunctionAnalysis) -> Vec<TreeNode> {
         TreeNode { label: name.to_owned(), children }
     }
     analysis.blocks.first().map(|entry| build(analysis, &entry.name)).into_iter().collect()
+}
+
+fn def_use_view(document: &Document, function: Option<&str>, args: &Value) -> Result<View, String> {
+    let value = args.get("value").and_then(Value::as_str).ok_or("the def_use view needs a `value` argument, such as `v2`")?;
+    let depth = match args.get("depth") {
+        None => 1,
+        Some(depth) => depth.as_u64().filter(|&d| d >= 1).ok_or("`depth` must be a positive integer")? as usize,
+    };
+    let text = document.text();
+    let functions: Vec<&Function> = document
+        .file()
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Function(function) => Some(function),
+            Item::Directive(_) => None,
+        })
+        .collect();
+    let function_name = |f: &Function| f.name.map_or("", |name| name.text(text)).to_owned();
+    let function = pick(&functions, |f| f.name.map_or("", |name| name.text(text)), function)?;
+    let name = function_name(function);
+    let definition = def_use::definition(document, function, value).ok_or_else(|| format!("no value `{value}` in {name}"))?;
+    Ok(View {
+        schema: SCHEMA,
+        view: "def_use".to_owned(),
+        title: format!("Uses of {value} in {name}"),
+        function: name,
+        sections: vec![
+            Section::Table {
+                title: "Definition".to_owned(),
+                columns: ["value", "block", "instruction"].map(str::to_owned).to_vec(),
+                rows: vec![vec![value.to_owned(), definition.block, definition.text]],
+            },
+            Section::Tree { title: "Uses".to_owned(), nodes: def_use::uses(document, function, value, depth) },
+        ],
+    })
 }
 
 fn stage_view(document: &Document, function: Option<&str>, args: &Value) -> Result<View, String> {

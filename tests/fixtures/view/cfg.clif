@@ -20,9 +20,9 @@
 ; check: view cfg %missing
 ; nextln: error: no function `%missing`
 ; check: view nope
-; nextln: error: unknown view `nope`, expected one of: cfg, analysis, stage, allocators, regalloc, provenance, egraph
+; nextln: error: unknown view `nope`, expected one of: cfg, analysis, def_use, stage, allocators, regalloc, provenance, egraph
 ; check: clif/view -> {"function":"%g"
-; nextln: clif/view -> error -32602 unknown view `nope`, expected one of: cfg, analysis, stage, allocators, regalloc, provenance, egraph
+; nextln: clif/view -> error -32602 unknown view `nope`, expected one of: cfg, analysis, def_use, stage, allocators, regalloc, provenance, egraph
 function %f(i32) {
 block0(v0: i32):
     brif v0, block1, block2

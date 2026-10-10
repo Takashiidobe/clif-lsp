@@ -3,6 +3,7 @@ pub mod calls;
 pub mod cfg;
 pub mod actions;
 pub mod completion;
+pub mod def_use;
 pub mod diagnostics;
 pub mod document;
 pub mod egraph;
