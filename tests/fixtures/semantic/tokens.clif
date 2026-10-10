@@ -1,0 +1,47 @@
+; mode: lsp
+; lsp: open
+; lsp: tokens
+; check: tokens
+; nextln: 0:0 keyword function
+; nextln: 0:9 function %f
+; nextln: 0:12 type i32
+; nextln: 0:20 type i32
+; nextln: 1:4 property ss0
+; nextln: 1:24 number 8
+; nextln: 2:0 namespace block0
+; nextln: 2:7 variable v0
+; nextln: 2:11 type i32
+; nextln: 3:4 variable v1
+; nextln: 3:9 keyword iadd
+; nextln: 3:14 type i32
+; nextln: 3:18 variable v0
+; nextln: 3:22 variable v0
+; nextln: 3:25 comment ; add
+; nextln: 4:4 variable v2
+; nextln: 4:9 keyword icmp
+; nextln: 4:14 enumMember eq
+; nextln: 4:17 variable v1
+; nextln: 4:21 variable v0
+; nextln: 5:4 variable v3
+; nextln: 5:9 keyword iconst
+; nextln: 5:16 type i32
+; nextln: 5:20 number 0x10
+; nextln: 6:4 variable v4
+; nextln: 6:9 keyword call
+; nextln: 6:14 function %g
+; nextln: 6:17 variable v3
+; nextln: 7:4 keyword trapnz
+; nextln: 7:11 variable v2
+; nextln: 8:4 keyword return
+; nextln: 8:11 variable v1
+; nextln: shutdown -> null
+function %f(i32) -> i32 {
+    ss0 = explicit_slot 8
+block0(v0: i32):
+    v1 = iadd.i32 v0, v0 ; add
+    v2 = icmp eq v1, v0
+    v3 = iconst.i32 0x10
+    v4 = call %g(v3)
+    trapnz v2, user1
+    return v1
+}

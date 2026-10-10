@@ -7,6 +7,7 @@ pub mod modes;
 pub mod navigation;
 pub mod parser;
 pub mod resolve;
+pub mod semantic;
 pub mod server;
 pub mod symbols;
 pub mod syntax;

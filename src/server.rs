@@ -6,7 +6,8 @@ use tower_lsp_server::jsonrpc::{Error, Result};
 use tower_lsp_server::ls_types::{
     CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams,
     InitializeResult, Diagnostic, DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, Location, OneOf,
-    PrepareRenameResponse, ReferenceParams, RenameOptions, RenameParams, TextDocumentPositionParams, TextEdit, WorkspaceEdit, ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
+    PrepareRenameResponse, ReferenceParams, RenameOptions, RenameParams, SemanticTokens, SemanticTokensOptions, SemanticTokensParams, SemanticTokensFullOptions, SemanticTokensResult,
+    SemanticTokensServerCapabilities, TextDocumentPositionParams, TextEdit, WorkspaceEdit, ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
 };
 use tower_lsp_server::{Client, LanguageServer};
 
@@ -15,6 +16,7 @@ use crate::diagnostics;
 use crate::document::Document;
 use crate::hover;
 use crate::navigation;
+use crate::semantic;
 use crate::symbols;
 
 pub struct Backend {
@@ -42,6 +44,13 @@ impl LanguageServer for Backend {
                     trigger_characters: Some(vec![".".into(), "%".into()]),
                     ..CompletionOptions::default()
                 }),
+                semantic_tokens_provider: Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
+                    SemanticTokensOptions {
+                        legend: semantic::legend(),
+                        full: Some(SemanticTokensFullOptions::Bool(true)),
+                        ..SemanticTokensOptions::default()
+                    },
+                )),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
@@ -92,6 +101,12 @@ impl LanguageServer for Backend {
         let documents = self.documents.read().await;
         let items = documents.get(&at.text_document.uri).map(|d| completion::at(d, at.position));
         Ok(items.map(CompletionResponse::Array))
+    }
+
+    async fn semantic_tokens_full(&self, params: SemanticTokensParams) -> Result<Option<SemanticTokensResult>> {
+        let documents = self.documents.read().await;
+        let data = documents.get(&params.text_document.uri).map(semantic::tokens);
+        Ok(data.map(|data| SemanticTokensResult::Tokens(SemanticTokens { result_id: None, data })))
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {

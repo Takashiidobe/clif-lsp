@@ -15,6 +15,7 @@ struct Client {
     writer: WriteHalf<DuplexStream>,
     next_id: u64,
     version: i64,
+    legend: Vec<String>,
     notifications: VecDeque<Value>,
 }
 
@@ -137,6 +138,23 @@ async fn step(client: &mut Client, source: &str, command: &str) -> Result<String
             }
             Ok(format!("{method} -> {}", client.request(method, params).await?))
         }
+        "tokens" => {
+            let params = json!({"textDocument": client.text_document()});
+            let response = client.request("textDocument/semanticTokens/full", params).await?;
+            let data: Value = serde_json::from_str(&response).map_err(|_| response.clone())?;
+            let numbers: Vec<u64> = data["data"].as_array().map_or(Vec::new(), |a| a.iter().filter_map(Value::as_u64).collect());
+            let lines: Vec<Vec<u16>> = plain_text(source).lines().map(|l| l.encode_utf16().collect()).collect();
+            let mut out = String::from("tokens");
+            let (mut line, mut start) = (0u64, 0u64);
+            for token in numbers.chunks(5) {
+                line += token[0];
+                start = if token[0] == 0 { start + token[1] } else { token[1] };
+                let word = lines.get(line as usize).map_or(String::new(), |l| String::from_utf16_lossy(&l[start as usize..(start + token[2]) as usize]));
+                let class = client.legend.get(token[3] as usize).map_or("?", String::as_str);
+                out.push_str(&format!("\n{line}:{start} {class} {word}"));
+            }
+            Ok(out)
+        }
         "complete" => {
             let (line, col) = rest.split_once(':').ok_or("expected `complete L:C`")?;
             let position = json!({"line": line.parse::<u32>().map_err(|e| e.to_string())?, "character": col.parse::<u32>().map_err(|e| e.to_string())?});
@@ -163,12 +181,18 @@ async fn session(source: &str) -> Result<String, String> {
         writer: client_write,
         next_id: 0,
         version: 1,
+        legend: Vec::new(),
         notifications: VecDeque::new(),
     };
 
     let mut out = String::new();
     let init = json!({"processId": null, "rootUri": null, "capabilities": {}});
-    out.push_str(&format!("initialize -> {}\n", client.request("initialize", init).await?));
+    let initialized = client.request("initialize", init).await?;
+    if let Ok(result) = serde_json::from_str::<Value>(&initialized) {
+        let types = &result["capabilities"]["semanticTokensProvider"]["legend"]["tokenTypes"];
+        client.legend = types.as_array().map_or(Vec::new(), |a| a.iter().filter_map(|t| t.as_str().map(str::to_owned)).collect());
+    }
+    out.push_str(&format!("initialize -> {initialized}\n"));
     client.notify("initialized", json!({})).await?;
     for command in script_of(source) {
         out.push_str(&step(&mut client, source, &command).await?);
