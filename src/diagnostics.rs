@@ -65,8 +65,8 @@ fn semantic(document: &Document, resolution: &Resolution) -> Vec<Diagnostic> {
     let test = match parse_test(text, ParseOptions::default()) {
         Ok(test) => test,
         Err(error) => {
-            let line = error.location.line_number.saturating_sub(1) as u32;
-            return vec![diagnostic(line_range(document, line), error.message, DiagnosticSeverity::ERROR)];
+            let range = reader_error_range(document, error.location.line_number, &error.message);
+            return vec![diagnostic(range, error.message, DiagnosticSeverity::ERROR)];
         }
     };
 
@@ -92,6 +92,43 @@ fn semantic(document: &Document, resolution: &Resolution) -> Vec<Diagnostic> {
         }
     }
     out
+}
+
+fn reader_error_range(document: &Document, line_number: usize, message: &str) -> Range {
+    let line = line_number.saturating_sub(1) as u32;
+    let line_start = document.offset(Position::new(line, 0));
+    if reports_lookahead(document.text(), line_start, message)
+        && let Some(span) = statement_before(document, line_start)
+    {
+        return Range::new(document.position(span.start), document.position(span.end));
+    }
+    line_range(document, line)
+}
+
+fn reports_lookahead(text: &str, line_start: usize, message: &str) -> bool {
+    let line_end = text[line_start..].find('\n').map_or(text.len(), |n| line_start + n);
+    let blanked = format!("{}{}{}", &text[..line_start], " ".repeat(line_end - line_start), &text[line_end..]);
+    parse_test(&blanked, ParseOptions::default())
+        .err()
+        .is_some_and(|retry| retry.message == message)
+}
+
+fn statement_before(document: &Document, offset: usize) -> Option<Span> {
+    document
+        .file()
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Function(f) => Some(f),
+            Item::Directive(_) => None,
+        })
+        .flat_map(|f| {
+            let decls = f.decls.iter().map(|d| d.span);
+            let blocks = f.blocks.iter().flat_map(|b| std::iter::once(b.span).chain(b.insts.iter().map(|i| i.span)));
+            decls.chain(blocks)
+        })
+        .filter(|span| span.end <= offset)
+        .max_by_key(|span| span.end)
 }
 
 fn flags_or_isa(spec: &cranelift_reader::IsaSpec) -> FlagsOrIsa<'_> {
