@@ -18,6 +18,10 @@ To build from a checkout instead, run `cargo install --path .`.
 This puts a `clif-lsp` binary on your `PATH`. It speaks LSP over stdio and takes
 no arguments.
 
+Or download a prebuilt binary for Linux, macOS, or Windows from the
+[releases page](https://github.com/Takashiidobe/clif-lsp/releases) and put it on
+your `PATH`. This needs no Rust toolchain.
+
 To use it in Neovim, see [docs/neovim.md](docs/neovim.md). Any editor that can
 launch a stdio language server works the same way.
 

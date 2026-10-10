@@ -1,0 +1,139 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+concurrency:
+  group: crates-io-release
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Run fixtures
+        run: cargo test --locked --test fixtures
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Check tag and published version
+        id: version
+        shell: bash
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          crate_version="$(cargo metadata --locked --no-deps --format-version 1 | jq -er '.packages[] | select(.name == "clif-lsp") | .version')"
+          if [ "$GITHUB_REF_NAME" != "v$crate_version" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match clif-lsp Cargo.toml version $crate_version" >&2
+            exit 1
+          fi
+
+          status="$(curl -A "clif-lsp-release-workflow" --silent --show-error --retry 3 --output /dev/null --write-out '%{http_code}' "https://crates.io/api/v1/crates/clif-lsp/$tag_version")"
+          if [ "$status" = "200" ]; then
+            echo "clif-lsp $tag_version already exists on crates.io; skipping publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif [ "$status" = "404" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Unexpected crates.io response while checking clif-lsp $tag_version: HTTP $status" >&2
+            exit 1
+          fi
+
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+        if: steps.version.outputs.publish == 'true'
+
+      - name: Publish to crates.io
+        if: steps.version.outputs.publish == 'true'
+        run: cargo publish --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+
+  binaries:
+    needs: publish
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+          - runner: macos-14
+            target: aarch64-apple-darwin
+          - runner: windows-2022
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build release binary
+        run: cargo build --release --locked --target ${{ matrix.target }} --bin clif-lsp
+
+      - name: Package release binary
+        shell: bash
+        env:
+          RELEASE_TARGET: ${{ matrix.target }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          suffix=""
+          if [[ "$RELEASE_TARGET" == *-windows-* ]]; then
+            suffix=".exe"
+          fi
+          staging="dist/clif-lsp"
+          mkdir -p "$staging"
+          cp "target/$RELEASE_TARGET/release/clif-lsp$suffix" "$staging/"
+          cp LICENSE-APACHE LICENSE-MIT README.md "$staging/"
+          tar -czf "dist/clif-lsp-$RELEASE_TARGET-v$version.tar.gz" -C "$staging" "clif-lsp$suffix" LICENSE-APACHE LICENSE-MIT README.md
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: binaries-${{ matrix.target }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    needs: binaries
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: binaries-*
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/*.tar.gz --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/*.tar.gz --verify-tag --generate-notes
+          fi
