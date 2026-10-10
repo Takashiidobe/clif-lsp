@@ -29,4 +29,6 @@ Diagnostics policy (`diagnostics::all`): parser errors are errors. Name-resoluti
 
 `folding` prints `folding` then one `START-END kind` line per folding range. `select L:C` prints the selection chain from the innermost range outward as `L:C-L:C` entries.
 
+`calls L:C` prepares a call hierarchy at that position and prints `calls L:C -> <name> <selection range>` followed by one `incoming`/`outgoing <name> [call sites]` line per related function, or `(none)`.
+
 `tokens` requests full semantic tokens and prints `tokens` followed by one `L:C <type> <text>` line per token, decoded with the legend from `initialize`.

@@ -226,6 +226,25 @@ async fn step(client: &mut Client, source: &str, command: &str) -> Result<String
             }
             Ok(out)
         }
+        "calls" => {
+            let (line, col) = rest.split_once(':').ok_or("expected `calls L:C`")?;
+            let position = json!({"line": line.parse::<u32>().map_err(|e| e.to_string())?, "character": col.parse::<u32>().map_err(|e| e.to_string())?});
+            let params = json!({"textDocument": client.text_document(), "position": position});
+            let response = client.request("textDocument/prepareCallHierarchy", params).await?;
+            let items: Value = serde_json::from_str(&response).map_err(|_| response.clone())?;
+            let Some(item) = items.get(0).cloned() else { return Ok(format!("calls {rest} -> (none)")) };
+            let span = |r: &Value| format!("{}:{}-{}:{}", r["start"]["line"], r["start"]["character"], r["end"]["line"], r["end"]["character"]);
+            let mut out = format!("calls {rest} -> {} {}", item["name"].as_str().unwrap_or(""), span(&item["selectionRange"]));
+            for (label, method, key) in [("incoming", "callHierarchy/incomingCalls", "from"), ("outgoing", "callHierarchy/outgoingCalls", "to")] {
+                let response = client.request(method, json!({"item": item})).await?;
+                let calls: Value = serde_json::from_str(&response).map_err(|_| response.clone())?;
+                for call in calls.as_array().into_iter().flatten() {
+                    let sites: Vec<String> = call["fromRanges"].as_array().into_iter().flatten().map(&span).collect();
+                    out.push_str(&format!("\n  {label} {} [{}]", call[key]["name"].as_str().unwrap_or(""), sites.join(" ")));
+                }
+            }
+            Ok(out)
+        }
         "await" => Ok(format!("{rest} <- {}", client.await_notification(rest).await?)),
         _ => Err(format!("unknown lsp command `{command}`")),
     }

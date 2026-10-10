@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower_lsp_server::jsonrpc::{Error, Result};
 use tower_lsp_server::ls_types::{
-    DocumentHighlight, DocumentHighlightKind, DocumentHighlightParams, FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability, SelectionRange, SelectionRangeParams, SelectionRangeProviderCapability, SignatureHelp, SignatureHelpOptions, SignatureHelpParams, CodeActionOptions, CodeActionParams, CodeActionProviderCapability, CodeActionResponse, CodeActionKind, CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams,
+    CallHierarchyIncomingCall, CallHierarchyIncomingCallsParams, CallHierarchyItem, CallHierarchyOutgoingCall, CallHierarchyOutgoingCallsParams, CallHierarchyPrepareParams, CallHierarchyServerCapability, DocumentHighlight, DocumentHighlightKind, DocumentHighlightParams, FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability, SelectionRange, SelectionRangeParams, SelectionRangeProviderCapability, SignatureHelp, SignatureHelpOptions, SignatureHelpParams, CodeActionOptions, CodeActionParams, CodeActionProviderCapability, CodeActionResponse, CodeActionKind, CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams,
     InitializeResult, Diagnostic, DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, Location, OneOf,
     PrepareRenameResponse, ReferenceParams, RenameOptions, RenameParams, SemanticTokens, SemanticTokensOptions, SemanticTokensParams, SemanticTokensFullOptions, SemanticTokensResult,
     SemanticTokensServerCapabilities, TextDocumentPositionParams, TextEdit, WorkspaceEdit, ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
@@ -12,6 +12,7 @@ use tower_lsp_server::ls_types::{
 use tower_lsp_server::{Client, LanguageServer};
 
 use crate::actions;
+use crate::calls;
 use crate::completion;
 use crate::diagnostics;
 use crate::document::Document;
@@ -66,6 +67,7 @@ impl LanguageServer for Backend {
                 folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
                 selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
                 document_highlight_provider: Some(OneOf::Left(true)),
+                call_hierarchy_provider: Some(CallHierarchyServerCapability::Simple(true)),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
@@ -156,6 +158,25 @@ impl LanguageServer for Backend {
             kind: Some(if definition { DocumentHighlightKind::WRITE } else { DocumentHighlightKind::READ }),
         });
         Ok(Some(found.collect()))
+    }
+
+    async fn prepare_call_hierarchy(&self, params: CallHierarchyPrepareParams) -> Result<Option<Vec<CallHierarchyItem>>> {
+        let at = params.text_document_position_params;
+        let documents = self.documents.read().await;
+        let found = documents.get(&at.text_document.uri).map(|d| calls::prepare(d, &at.text_document.uri, at.position));
+        Ok(found)
+    }
+
+    async fn incoming_calls(&self, params: CallHierarchyIncomingCallsParams) -> Result<Option<Vec<CallHierarchyIncomingCall>>> {
+        let documents = self.documents.read().await;
+        let found = documents.get(&params.item.uri).map(|d| calls::incoming(d, &params.item.uri, &params.item));
+        Ok(found)
+    }
+
+    async fn outgoing_calls(&self, params: CallHierarchyOutgoingCallsParams) -> Result<Option<Vec<CallHierarchyOutgoingCall>>> {
+        let documents = self.documents.read().await;
+        let found = documents.get(&params.item.uri).map(|d| calls::outgoing(d, &params.item.uri, &params.item));
+        Ok(found)
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {

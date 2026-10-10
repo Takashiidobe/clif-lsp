@@ -1,3 +1,4 @@
+pub mod calls;
 pub mod actions;
 pub mod completion;
 pub mod diagnostics;
