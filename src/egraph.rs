@@ -262,7 +262,7 @@ fn fields_of(data: &str) -> Option<Vec<(String, String)>> {
 
 const CSS: &str = r#"
 .card { border: 1px solid var(--border); border-radius: 6px; margin: 0 0 12px; max-width: 900px; overflow: hidden; }
-.card.single { opacity: 0.7; }
+h2 { font-size: 14px; margin: 16px 0 8px; color: var(--muted); }
 .card .head { background: var(--head); padding: 4px 12px; font-weight: 600; }
 .form { display: grid; grid-template-columns: minmax(180px, 1fr) 160px 150px minmax(200px, 1fr); align-items: center; padding: 0 12px; border-top: 1px solid var(--border); }
 .form.chosen { background: var(--new); }
@@ -272,6 +272,32 @@ const CSS: &str = r#"
 .rule { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 .empty { color: var(--muted); }
 "#;
+
+fn class_card(body: &mut String, class: &Class) {
+    let has_choice = class.members.len() > 1;
+    body.push_str(&format!("<div class=\"card\">\n<div class=\"head mono\">{}</div>\n", escape(&class.input)));
+    let worst = class.members.iter().filter_map(|m| m.cost).max().unwrap_or(1).max(1);
+    for member in &class.members {
+        let chosen = if has_choice && member.chosen { " chosen" } else { "" };
+        let width = member.cost.map_or(0, |cost| cost * 140 / worst);
+        let cost = member.cost.map_or("cost unknown".to_owned(), |cost| format!("cost {cost}"));
+        let mut tags = Vec::new();
+        if member.original {
+            tags.push("original");
+        }
+        if has_choice && member.chosen {
+            tags.push("chosen");
+        }
+        let rules: Vec<String> = member.rules.iter().map(|r| escape(&format!("{}:{}", r.file, r.line))).collect();
+        body.push_str(&format!(
+            "<div class=\"form mono{chosen}\"><span>{}</span><span class=\"cost\"><i class=\"bar\" style=\"width:{width}px\"></i>{cost}</span><span class=\"tag\">{}</span><span class=\"rule\">{}</span></div>\n",
+            escape(&member.text),
+            tags.join(", "),
+            rules.join(", ")
+        ));
+    }
+    body.push_str("</div>\n");
+}
 
 impl Report {
     pub fn with_alternatives(&self) -> impl Iterator<Item = &Class> {
@@ -287,31 +313,15 @@ impl Report {
         if self.classes.is_empty() {
             body.push_str("<p class=\"empty\">No egraph data. The egraph pass runs only with opt_level=speed or speed_and_size.</p>\n");
         }
-        let ordered = self.with_alternatives().chain(self.classes.iter().filter(|class| class.members.len() <= 1));
-        for class in ordered {
-            let single = if class.members.len() > 1 { "" } else { " single" };
-            body.push_str(&format!("<div class=\"card{single}\">\n<div class=\"head mono\">{}</div>\n", escape(&class.input)));
-            let worst = class.members.iter().filter_map(|m| m.cost).max().unwrap_or(1).max(1);
-            for member in &class.members {
-                let chosen = if member.chosen { " chosen" } else { "" };
-                let width = member.cost.map_or(0, |cost| cost * 140 / worst);
-                let cost = member.cost.map_or("cost unknown".to_owned(), |cost| format!("cost {cost}"));
-                let mut tags = Vec::new();
-                if member.original {
-                    tags.push("original");
-                }
-                if member.chosen {
-                    tags.push("chosen");
-                }
-                let rules: Vec<String> = member.rules.iter().map(|r| escape(&format!("{}:{}", r.file, r.line))).collect();
-                body.push_str(&format!(
-                    "<div class=\"form mono{chosen}\"><span>{}</span><span class=\"cost\"><i class=\"bar\" style=\"width:{width}px\"></i>{cost}</span><span class=\"tag\">{}</span><span class=\"rule\">{}</span></div>\n",
-                    escape(&member.text),
-                    tags.join(", "),
-                    rules.join(", ")
-                ));
+        let (multiple, single): (Vec<&Class>, Vec<&Class>) = self.classes.iter().partition(|class| class.members.len() > 1);
+        for (heading, group) in [("Rewritten or with alternatives", multiple), ("No alternatives", single)] {
+            if group.is_empty() {
+                continue;
             }
-            body.push_str("</div>\n");
+            body.push_str(&format!("<h2>{heading}</h2>\n"));
+            for class in group {
+                class_card(&mut body, class);
+            }
         }
         html::page(&format!("E-graph of {}", self.name), &[("new", "chosen by the extractor")], CSS, &body, "")
     }
