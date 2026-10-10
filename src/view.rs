@@ -38,13 +38,14 @@ pub struct TreeNode {
     pub children: Vec<TreeNode>,
 }
 
-const VIEWS: [&str; 8] = ["cfg", "analysis", "def_use", "stage", "allocators", "regalloc", "provenance", "egraph"];
+const VIEWS: [&str; 9] = ["cfg", "analysis", "def_use", "use_counts", "stage", "allocators", "regalloc", "provenance", "egraph"];
 
 pub fn render(document: &Document, view: &str, function: Option<&str>, args: &Value) -> Result<View, String> {
     match view {
         "cfg" => cfg_view(document, function),
         "analysis" => analysis_view(document, function),
         "def_use" => def_use_view(document, function, args),
+        "use_counts" => use_counts_view(document, function),
         "stage" => stage_view(document, function, args),
         "allocators" => allocators_view(document, function),
         "regalloc" => regalloc_view(document, function),
@@ -128,13 +129,11 @@ fn dominator_tree(analysis: &FunctionAnalysis) -> Vec<TreeNode> {
     analysis.blocks.first().map(|entry| build(analysis, &entry.name)).into_iter().collect()
 }
 
-fn def_use_view(document: &Document, function: Option<&str>, args: &Value) -> Result<View, String> {
-    let value = args.get("value").and_then(Value::as_str).ok_or("the def_use view needs a `value` argument, such as `v2`")?;
-    let depth = match args.get("depth") {
-        None => 1,
-        Some(depth) => depth.as_u64().filter(|&d| d >= 1).ok_or("`depth` must be a positive integer")? as usize,
-    };
-    let text = document.text();
+fn function_name(document: &Document, function: &Function) -> String {
+    function.name.map_or("", |name| name.text(document.text())).to_owned()
+}
+
+fn pick_function<'a>(document: &'a Document, function: Option<&str>) -> Result<&'a Function, String> {
     let functions: Vec<&Function> = document
         .file()
         .items
@@ -144,9 +143,17 @@ fn def_use_view(document: &Document, function: Option<&str>, args: &Value) -> Re
             Item::Directive(_) => None,
         })
         .collect();
-    let function_name = |f: &Function| f.name.map_or("", |name| name.text(text)).to_owned();
-    let function = pick(&functions, |f| f.name.map_or("", |name| name.text(text)), function)?;
-    let name = function_name(function);
+    pick(&functions, |f| f.name.map_or("", |name| name.text(document.text())), function).copied()
+}
+
+fn def_use_view(document: &Document, function: Option<&str>, args: &Value) -> Result<View, String> {
+    let value = args.get("value").and_then(Value::as_str).ok_or("the def_use view needs a `value` argument, such as `v2`")?;
+    let depth = match args.get("depth") {
+        None => 1,
+        Some(depth) => depth.as_u64().filter(|&d| d >= 1).ok_or("`depth` must be a positive integer")? as usize,
+    };
+    let function = pick_function(document, function)?;
+    let name = function_name(document, function);
     let definition = def_use::definition(document, function, value).ok_or_else(|| format!("no value `{value}` in {name}"))?;
     Ok(View {
         schema: SCHEMA,
@@ -160,6 +167,29 @@ fn def_use_view(document: &Document, function: Option<&str>, args: &Value) -> Re
                 rows: vec![vec![value.to_owned(), definition.block, definition.text]],
             },
             Section::Tree { title: "Uses".to_owned(), nodes: def_use::uses(document, function, value, depth) },
+        ],
+    })
+}
+
+fn use_counts_view(document: &Document, function: Option<&str>) -> Result<View, String> {
+    let function = pick_function(document, function)?;
+    let name = function_name(document, function);
+    let counts = def_use::use_counts(document, function);
+    let columns = |names: &[&str]| names.iter().map(|n| (*n).to_owned()).collect();
+    let dead = counts.iter().filter(|c| c.count == 0).map(|c| vec![c.value.clone(), c.block.clone(), c.definition.clone()]).collect();
+    let single = counts
+        .iter()
+        .filter(|c| c.count == 1)
+        .map(|c| vec![c.value.clone(), c.block.clone(), c.definition.clone(), c.first_user.clone().unwrap_or_default()])
+        .collect();
+    Ok(View {
+        schema: SCHEMA,
+        view: "use_counts".to_owned(),
+        title: format!("Dead and single-use values of {name}"),
+        function: name,
+        sections: vec![
+            Section::Table { title: "Dead values".to_owned(), columns: columns(&["value", "block", "definition"]), rows: dead },
+            Section::Table { title: "Single-use values".to_owned(), columns: columns(&["value", "block", "definition", "used by"]), rows: single },
         ],
     })
 }

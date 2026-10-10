@@ -1,0 +1,44 @@
+; mode: view
+; ^ view use_counts
+; ^ view use_counts %g
+; ^ view use_counts %missing
+; check: view use_counts
+; check: title: Dead and single-use values of %f
+; check: == Dead values ==
+; nextln: value | block | definition
+; nextln: v6 | block3 | v6 = iconst.i32 1
+; nextln: v7 | block3 | v7 = iconst.i32 2
+; check: == Single-use values ==
+; nextln: value | block | definition | used by
+; nextln: v3 | block1 | v3 = iadd v2, v1 | block1: jump block3(v3)
+; nextln: v4 | block3 | v4: i32 | block3: v5 = iadd v4, v0
+; nextln: v5 | block3 | v5 = iadd v4, v0 | block3: return v5
+; check: view use_counts %g
+; check: title: Dead and single-use values of %g
+; nextln: function: %g
+; nextln: == Dead values ==
+; nextln: value | block | definition
+; nextln: v0 | block0 | v0: i32
+; nextln: == Single-use values ==
+; nextln: value | block | definition | used by
+; check: view use_counts %missing
+; nextln: error: no function `%missing`
+function %f(i32, i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = iadd v0, v1
+    brif v0, block1, block2
+block1:
+    v3 = iadd v2, v1
+    jump block3(v3)
+block2:
+    jump block3(v2)
+block3(v4: i32):
+    v5 = iadd v4, v0
+    v6 = iconst.i32 1
+    v7 = iconst.i32 2
+    return v5
+}
+function %g(i32) {
+block0(v0: i32):
+    return
+}
