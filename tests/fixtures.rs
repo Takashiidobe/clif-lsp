@@ -87,6 +87,11 @@ fn run(relative: &str, path: &Path) -> Result<(), String> {
     if ok {
         Ok(())
     } else {
+        if let Some(dir) = std::env::var_os("FIXTURES_ACTUAL_DIR") {
+            let target = Path::new(&dir).join(relative);
+            fs::create_dir_all(target.parent().unwrap()).unwrap();
+            fs::write(target, &output).unwrap();
+        }
         Err(format!("{explanation}\n--- actual output ---\n{output}"))
     }
 }

@@ -5,6 +5,8 @@
 
 Expectations are `; CHECK:` lines in each file, run by `cargo test --test fixtures`.
 
+`tools/update_filecheck.py [globs]` rewrites the checks of failing fixtures from their actual output, in place. Globs are relative to this directory and a directory means every `.clif` below it. `-n` prints the diffs without writing. It sets `FIXTURES_ACTUAL_DIR` so the harness saves each mismatching fixture's output, re-runs every file it blessed, and restores the original if the new checks do not pass. Failures that are not check mismatches (invariants, the reader oracle, bad directives) are reported, not blessed.
+
 `tokens` mode positions are `line:byte-column`, with line 0 being the first line after the leading block of directive comments. Directive comments print as `Comment "<directive>"` so checks cannot match themselves.
 
 The harness also runs invariants on every fixture, whatever its `mode:`: the lexer tiles the input exactly, the parser does not panic, and every span is in bounds on char boundaries. These are re-checked on every char-boundary prefix of the file.

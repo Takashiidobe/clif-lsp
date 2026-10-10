@@ -55,7 +55,8 @@ render the sections generically, so a new view needs no new client code.
 Params:
 
 - `textDocument`: the document.
-- `view`: the view name. One of `cfg`, `analysis`, `stage`, `allocators`.
+- `view`: the view name. One of `cfg`, `analysis`, `stage`, `allocators`,
+  `regalloc`.
 - `function`: the function name, for example `%main`. Defaults to the first
   function in the file.
 - `args`: an optional object of view-specific arguments.
@@ -98,6 +99,23 @@ Views:
   with no memory operand, and a stack access is a line that addresses `%rsp`,
   `%rbp` or `sp`. Callee-saved register saves and restores count as stack
   accesses.
+- `regalloc`: where the register allocator put each value. The function is
+  optimized first, so the value numbers are those of the optimized CLIF, and it
+  is compiled with the file's allocator setting. Three sections: a `table` of
+  totals (`values placed`, `spills`, `reloads`, `moves`, `spill slots`,
+  `regalloc2 edits`), a `table` of assignments (`value`, `location`, `event`,
+  `from`, `until`), and a `dot` graph with one node per block, listing each
+  instruction with the locations of the values it defines. Spills are red,
+  reloads green and moves yellow.
+
+  A `location` is a register (`%rsi`) or a stack slot (`[cfa-80]`). `event` is
+  `def` for a value's first location, `spill` when it moves from a register to
+  the stack, `reload` for the reverse, and `move` for any other change. `from`
+  and `until` are CLIF instructions, or `parameter` for a block parameter's
+  first location. A spill, reload or move is placed at the first instruction
+  where the new location holds. The data comes from Cranelift's value-label
+  debug ranges, so only values that survive optimization appear, and it says
+  where a value lives, not why the allocator chose it.
 
 An unknown view, function or stage, or a missing required argument, fails with
 an invalid-params error.

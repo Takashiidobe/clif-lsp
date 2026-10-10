@@ -69,6 +69,7 @@ dependencies = [
  "cranelift-codegen",
  "cranelift-reader",
  "filecheck",
+ "regalloc2",
  "ropey",
  "serde",
  "serde_json",

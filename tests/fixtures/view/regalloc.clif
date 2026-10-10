@@ -1,0 +1,94 @@
+; mode: view
+; ^ view regalloc %simple
+; ^ view regalloc %pressure
+; ^ view regalloc %branch
+; check: view regalloc %simple
+; check:   "title": "Register allocation of %simple (optimized CLIF)",
+; check:           "values placed",
+; nextln:           "3"
+; check:           "spills",
+; nextln:           "0"
+; check:           "reloads",
+; nextln:           "0"
+; check:           "spill slots",
+; nextln:           "0"
+; check:           "v0",
+; nextln:           "%rdi",
+; nextln:           "def",
+; nextln:           "parameter",
+; check:           "v2",
+; nextln:           "%rax",
+; check: <TD ALIGN=\"LEFT\" BGCOLOR=\"white\">v2: %rax<BR ALIGN=\"LEFT\"/></TD>
+; check: view regalloc %pressure
+; check:           "spills",
+; nextln:           "1"
+; check:           "reloads",
+; nextln:           "2"
+; check:           "spill slots",
+; nextln:           "1"
+; check:           "regalloc2 edits",
+; nextln:           "10"
+; check:           "[cfa-80]",
+; nextln:           "def",
+; check:           "%rcx",
+; nextln:           "reload",
+; check:           "[cfa-80]",
+; nextln:           "spill",
+; check: BGCOLOR=\"#b6e3b6\">v9: %rcx (reload)<BR ALIGN=\"LEFT\"/>v10: %r10
+; check: BGCOLOR=\"#f4b6b6\">v9: [cfa-80] (spill)<BR ALIGN=\"LEFT\"/>v38: %rdi
+; check: view regalloc %branch
+; check: \"block0\" -> \"block1\";
+; sameln: \"block0\" -> \"block2\";
+set opt_level=speed
+target x86_64
+function %simple(i64, i64) -> i64 {
+block0(v0: i64, v1: i64):
+    v2 = iadd v0, v1
+    return v2
+}
+function %branch(i32) -> i32 {
+block0(v0: i32):
+    brif v0, block1, block2
+block1:
+    v1 = iconst.i32 1
+    return v1
+block2:
+    v2 = iconst.i32 2
+    return v2
+}
+function %pressure(i64, i64) -> i64 {
+block0(v0: i64, v1: i64):
+    v2 = iadd v0, v1
+    v3 = imul v2, v0
+    v4 = isub v3, v1
+    v5 = iadd v4, v2
+    v6 = imul v5, v3
+    v7 = iadd v6, v4
+    v8 = isub v7, v5
+    v9 = iadd v8, v6
+    v10 = imul v9, v7
+    v11 = iadd v10, v8
+    v12 = isub v11, v9
+    v13 = iadd v12, v10
+    v14 = imul v13, v11
+    v15 = iadd v14, v12
+    v16 = isub v15, v13
+    v17 = iadd v16, v14
+    v18 = imul v17, v15
+    v19 = iadd v18, v16
+    v20 = iadd v19, v17
+    v21 = iadd v20, v18
+    v22 = iadd v21, v19
+    v23 = iadd v22, v2
+    v24 = iadd v23, v3
+    v25 = iadd v24, v4
+    v26 = iadd v25, v5
+    v27 = iadd v26, v6
+    v28 = iadd v27, v7
+    v29 = iadd v28, v8
+    v30 = iadd v29, v9
+    v31 = iadd v30, v10
+    v32 = iadd v31, v11
+    v33 = iadd v32, v12
+    return v33
+}

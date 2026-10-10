@@ -150,6 +150,8 @@ end, { nargs = '+' })
   `args` is a JSON object and needs the function before it, as in
   `:ClifView stage %main {"stage":"vcode"}`. `:ClifView allocators` compares
   the two register allocators.
+- `:ClifRegalloc [function]` shows the register assignments, spills and reloads
+  as tables and a drawn graph. See [Register allocation](#register-allocation).
 
 ## Drawing the graph
 
@@ -200,6 +202,44 @@ For `tests/fixtures/analysis/diamond.clif`, `:ClifGraphImage` opens this:
 
 ![Control flow graph of the diamond fixture](images/diamond-cfg.png)
 
+## Register allocation
+
+`:ClifRegalloc [function]` shows where the register allocator put each value:
+the totals and the per-value assignments in a scratch buffer, and the block
+graph drawn as an image, like `:ClifGraphImage`. Spills are red, reloads green
+and moves yellow. It needs Graphviz and the same image setup. Without `dot` you
+get the tables only.
+
+```lua
+vim.api.nvim_create_user_command('ClifRegalloc', function(o)
+  request('clif/view', { view = 'regalloc', ['function'] = o.fargs[1] }, function(v)
+    local out = { v.title, '' }
+    for _, s in ipairs(v.sections) do
+      if s.kind == 'table' then
+        table.insert(out, '== ' .. s.title .. ' ==')
+        table.insert(out, table.concat(s.columns, '\t'))
+        for _, row in ipairs(s.rows) do
+          table.insert(out, table.concat(row, '\t'))
+        end
+        table.insert(out, '')
+      elseif s.kind == 'dot' and vim.fn.executable('dot') == 1 then
+        local png = vim.fn.tempname() .. '.png'
+        local done = vim.system({ 'dot', '-Tpng', '-o', png }, { stdin = s.dot }):wait()
+        if done.code == 0 then
+          vim.cmd('split ' .. vim.fn.fnameescape(png))
+        else
+          vim.notify(done.stderr, vim.log.levels.ERROR)
+        end
+      end
+    end
+    return table.concat(out, '\n')
+  end)
+end, { nargs = '?' })
+```
+
+The value numbers are those of the optimized function, so they can differ from
+the file. See the `regalloc` view in [custom requests](requests.md#clifview).
+
 ## Trying it on the fixtures
 
 The repository's test fixtures make good sample files. Build the server with
@@ -218,6 +258,7 @@ Then open a fixture and run the command in the table.
 | `analysis/diamond.clif`          | `:ClifAnalysis`, then `K` on a block name.          |
 | `cfg/graph.clif`                 | `:ClifGraph`. One block is unreachable and faded.   |
 | `stages/views.clif`              | `:ClifStage`, `:ClifStage vcode`.                   |
+| `view/regalloc.clif`             | `:ClifRegalloc %pressure` for a spill and reloads.  |
 | `calls/hierarchy.clif`           | `:lua vim.lsp.buf.incoming_calls()` on a name.      |
 | `actions/unknown_opcode.clif`    | `gra` on the bad opcode.                            |
 | `actions/undefined_names.clif`   | `gra` on an undefined value, block, or declaration. |

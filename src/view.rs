@@ -4,6 +4,7 @@ use serde_json::Value;
 use crate::analysis::{self, FunctionAnalysis};
 use crate::cfg;
 use crate::document::Document;
+use crate::regalloc::{self, Event};
 use crate::stages::{self, Stage};
 
 pub const SCHEMA: u32 = 1;
@@ -33,7 +34,7 @@ pub struct TreeNode {
     pub children: Vec<TreeNode>,
 }
 
-const VIEWS: [&str; 4] = ["cfg", "analysis", "stage", "allocators"];
+const VIEWS: [&str; 5] = ["cfg", "analysis", "stage", "allocators", "regalloc"];
 
 pub fn render(document: &Document, view: &str, function: Option<&str>, args: &Value) -> Result<View, String> {
     match view {
@@ -41,6 +42,7 @@ pub fn render(document: &Document, view: &str, function: Option<&str>, args: &Va
         "analysis" => analysis_view(document, function),
         "stage" => stage_view(document, function, args),
         "allocators" => allocators_view(document, function),
+        "regalloc" => regalloc_view(document, function),
         _ => Err(format!("unknown view `{view}`, expected one of: {}", VIEWS.join(", "))),
     }
 }
@@ -189,6 +191,39 @@ fn allocators_view(document: &Document, function: Option<&str>) -> Result<View, 
         sections: vec![
             Section::Table { title: "Summary".to_owned(), columns, rows },
             Section::Diff { title: "vcode".to_owned(), from: ALGORITHMS[0].to_owned(), to: ALGORITHMS[1].to_owned(), text },
+        ],
+    })
+}
+
+fn regalloc_view(document: &Document, function: Option<&str>) -> Result<View, String> {
+    let target = stages::target(document, function)?;
+    let report = regalloc::analyze(&target)?;
+    let columns = |names: &[&str]| names.iter().map(|n| (*n).to_owned()).collect();
+    let summary = vec![
+        vec!["values placed".to_owned(), report.segments.iter().filter(|s| s.event == Event::Def).count().to_string()],
+        vec!["spills".to_owned(), report.count(Event::Spill).to_string()],
+        vec!["reloads".to_owned(), report.count(Event::Reload).to_string()],
+        vec!["moves".to_owned(), report.count(Event::Move).to_string()],
+        vec!["spill slots".to_owned(), report.spill_slots.to_string()],
+        vec!["regalloc2 edits".to_owned(), report.edits.to_string()],
+    ];
+    let assignments = report
+        .segments
+        .iter()
+        .map(|s| {
+            let from = if s.event == Event::Def && report.is_param(&s.value) { "parameter".to_owned() } else { report.insts[s.from].clone() };
+            vec![s.value.clone(), s.place.clone(), s.event.label().to_owned(), from, report.insts[s.to].clone()]
+        })
+        .collect();
+    Ok(View {
+        schema: SCHEMA,
+        view: "regalloc".to_owned(),
+        title: format!("Register allocation of {} (optimized CLIF)", report.name),
+        function: report.name.clone(),
+        sections: vec![
+            Section::Table { title: "Summary".to_owned(), columns: columns(&["metric", "count"]), rows: summary },
+            Section::Table { title: "Assignments".to_owned(), columns: columns(&["value", "location", "event", "from", "until"]), rows: assignments },
+            Section::Dot { title: "Allocation graph".to_owned(), dot: report.dot() },
         ],
     })
 }

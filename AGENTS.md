@@ -140,7 +140,10 @@ cargo build
 cargo run -p xtask -- gen-opcodes   # regenerate src/tables/opcodes.rs from cranelift 0.136.2
 cargo run -p xtask -- gen-types     # regenerate src/tables/types.rs and codes.rs
 cargo test --test fixtures   # runs every tests/fixtures/**/*.clif through its mode/check directives
+tools/update_filecheck.py [globs]   # bless failing fixtures in place; -n shows the diff only
 ```
+
+`tools/update_filecheck.py` replaces the `check:`/`nextln:` lines of a failing fixture with the full actual output, so it turns hand-picked checks into a complete dump. Use it when the new output is right and the old checks are stale; then trim the result by hand if a smaller check reads better. Always read the diff (`-n`) before blessing, since a wrong output blessed once is a passing test.
 
 ## Architecture Overview
 
