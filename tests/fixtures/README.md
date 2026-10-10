@@ -31,4 +31,6 @@ Diagnostics policy (`diagnostics::all`): parser errors are errors. Name-resoluti
 
 `calls L:C` prepares a call hierarchy at that position and prints `calls L:C -> <name> <selection range>` followed by one `incoming`/`outgoing <name> [call sites]` line per related function, or `(none)`.
 
+`hints L:C-L:C` requests inlay hints for the range and prints `L:C label (kind N)` per hint (kind 1 is a type hint, 2 a parameter hint), or `(none)`.
+
 `tokens` requests full semantic tokens and prints `tokens` followed by one `L:C <type> <text>` line per token, decoded with the legend from `initialize`.

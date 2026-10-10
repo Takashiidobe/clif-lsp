@@ -1,0 +1,25 @@
+; mode: lsp
+; lsp: open
+; lsp: hints 0:0-9:0
+; lsp: hints 3:0-4:0
+; lsp: hints 6:0-9:0
+; check: hints 0:0-9:0
+; nextln: 2:6 : i32 (kind 1)
+; nextln: 3:6 : i8 (kind 1)
+; nextln: 5:20 v4: (kind 2)
+; nextln: 5:24 v5: (kind 2)
+; nextln: hints 3:0-4:0
+; nextln: 3:6 : i8 (kind 1)
+; nextln: hints 6:0-9:0
+; nextln: (none)
+function %f(i32) -> i32 {
+block0(v0: i32):
+    v1 = iadd v0, v0
+    v2 = icmp eq v1, v0
+    v3 = iadd.i32 v1, v1
+    brif v2, block1(v1, v3), block2
+block1(v4: i32, v5: i32):
+    return v4
+block2:
+    return v0
+}

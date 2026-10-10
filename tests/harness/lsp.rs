@@ -245,6 +245,19 @@ async fn step(client: &mut Client, source: &str, command: &str) -> Result<String
             }
             Ok(out)
         }
+        "hints" => {
+            let (range, _) = parse_edit(&format!("{rest} "))?;
+            let response = client.request("textDocument/inlayHint", json!({"textDocument": client.text_document(), "range": range})).await?;
+            let hints: Value = serde_json::from_str(&response).map_err(|_| response.clone())?;
+            let mut out = format!("hints {rest}");
+            for hint in hints.as_array().into_iter().flatten() {
+                out.push_str(&format!("\n  {}:{} {} (kind {})", hint["position"]["line"], hint["position"]["character"], hint["label"].as_str().unwrap_or(""), hint["kind"]));
+            }
+            if hints.as_array().is_none_or(|a| a.is_empty()) {
+                out.push_str("\n  (none)");
+            }
+            Ok(out)
+        }
         "await" => Ok(format!("{rest} <- {}", client.await_notification(rest).await?)),
         _ => Err(format!("unknown lsp command `{command}`")),
     }
