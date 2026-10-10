@@ -1,6 +1,7 @@
 use tower_lsp_server::ls_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position, Range};
 
 use crate::document::Document;
+use crate::inference;
 use crate::navigation;
 use crate::resolve::{NameKind, Resolution};
 use crate::syntax::{Function, Item, Span};
@@ -65,12 +66,13 @@ fn definition_hover(document: &Document, resolution: &Resolution, def: usize) ->
         }
         kind => {
             let (_, function) = functions.into_iter().find(|(index, _)| Some(*index) == def.scope)?;
-            scoped_definition(text, function, kind, def.span)
+            scoped_definition(document, function, kind, def.span)
         }
     }
 }
 
-fn scoped_definition(text: &str, function: &Function, kind: NameKind, span: Span) -> Option<String> {
+fn scoped_definition(document: &Document, function: &Function, kind: NameKind, span: Span) -> Option<String> {
+    let text = document.text();
     match kind {
         NameKind::Entity => {
             let decl = function.decls.iter().find(|d| Span::from(d.name) == span)?;
@@ -88,8 +90,10 @@ fn scoped_definition(text: &str, function: &Function, kind: NameKind, span: Span
                 }
                 if let Some(inst) = block.insts.iter().find(|i| i.results.iter().any(|r| Span::from(*r) == span)) {
                     let mut out = format!("defined by\n\n{}", code(inst.span.text(text)));
-                    if let Some(ty) = inst.type_suffix.first() {
-                        out.push_str(&format!("\n\ntype `{}`", ty.text(text)));
+                    let inferred = inference::value_types(document);
+                    let ty = inferred.get(&span.start).map(String::as_str).or(inst.type_suffix.first().map(|t| t.text(text)));
+                    if let Some(ty) = ty {
+                        out.push_str(&format!("\n\ntype `{ty}`"));
                     }
                     return Some(out);
                 }

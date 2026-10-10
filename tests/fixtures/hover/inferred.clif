@@ -1,0 +1,21 @@
+; mode: lsp
+; lsp: open
+; lsp: request textDocument/hover {"position":{"line":2,"character":5}}
+; lsp: request textDocument/hover {"position":{"line":3,"character":5}}
+; lsp: request textDocument/hover {"position":{"line":4,"character":5}}
+; lsp: request textDocument/hover {"position":{"line":5,"character":5}}
+; lsp: request textDocument/hover {"position":{"line":6,"character":5}}
+; check: iadd v0, v0\n```\n\ntype `i32`
+; nextln: icmp eq v1, v0\n```\n\ntype `i8`
+; nextln: fcmp lt v9, v9\n```\n\ntype `i8`
+; nextln: fadd v9, v9\n```\n\ntype `f64`
+; nextln: uextend.i64 v2\n```\n\ntype `i64`
+function %f(i32, f64) -> i32 {
+block0(v0: i32, v9: f64):
+    v1 = iadd v0, v0
+    v2 = icmp eq v1, v0
+    v3 = fcmp lt v9, v9
+    v4 = fadd v9, v9
+    v5 = uextend.i64 v2
+    return v1
+}
