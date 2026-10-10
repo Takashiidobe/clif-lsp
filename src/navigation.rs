@@ -9,18 +9,18 @@ pub struct Target {
     pub kind: NameKind,
     pub name: String,
     pub span: Span,
-    def: Option<usize>,
+    pub def: Option<usize>,
 }
 
 fn range(document: &Document, span: Span) -> Range {
     Range::new(document.position(span.start), document.position(span.end))
 }
 
-fn resolution(document: &Document) -> Resolution {
+pub fn resolution(document: &Document) -> Resolution {
     resolve::resolve(document.file(), document.text())
 }
 
-fn find(resolution: &Resolution, offset: usize) -> Option<Target> {
+pub fn find(resolution: &Resolution, offset: usize) -> Option<Target> {
     let hit = |span: Span| span.start <= offset && offset < span.end;
     let touch = |span: Span| span.start <= offset && offset <= span.end;
     let defs = || {

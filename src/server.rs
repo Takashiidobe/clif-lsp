@@ -5,13 +5,14 @@ use tokio::sync::RwLock;
 use tower_lsp_server::jsonrpc::{Error, Result};
 use tower_lsp_server::ls_types::{
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams,
-    InitializeResult, Diagnostic, DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse, Location, OneOf,
+    InitializeResult, Diagnostic, DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, Location, OneOf,
     PrepareRenameResponse, ReferenceParams, RenameOptions, RenameParams, TextDocumentPositionParams, TextEdit, WorkspaceEdit, ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
 };
 use tower_lsp_server::{Client, LanguageServer};
 
 use crate::diagnostics;
 use crate::document::Document;
+use crate::hover;
 use crate::navigation;
 use crate::symbols;
 
@@ -36,6 +37,7 @@ impl LanguageServer for Backend {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::INCREMENTAL)),
                 document_symbol_provider: Some(OneOf::Left(true)),
+                hover_provider: Some(HoverProviderCapability::Simple(true)),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
                 rename_provider: Some(OneOf::Right(RenameOptions {
@@ -78,6 +80,12 @@ impl LanguageServer for Backend {
         let documents = self.documents.read().await;
         let found = documents.get(&params.text_document.uri).map(symbols::document);
         Ok(found.map(DocumentSymbolResponse::Nested))
+    }
+
+    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
+        let at = params.text_document_position_params;
+        let documents = self.documents.read().await;
+        Ok(documents.get(&at.text_document.uri).and_then(|d| hover::at(d, at.position)))
     }
 
     async fn goto_definition(&self, params: GotoDefinitionParams) -> Result<Option<GotoDefinitionResponse>> {
