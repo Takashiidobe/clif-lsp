@@ -5,6 +5,7 @@ use crate::lexer::{self, Token, TokenKind};
 use crate::parser;
 use crate::resolve;
 use crate::syntax::{Item, Span};
+use crate::view::{Section, TreeNode, View};
 
 pub struct Query {
     pub line: usize,
@@ -290,12 +291,40 @@ fn render_views(input: &Input) -> Result<String, String> {
         let args = if json.trim().is_empty() { serde_json::Value::Null } else { serde_json::from_str(json.trim()).map_err(|e| format!("bad view args: {e}"))? };
         out.push_str(&format!("view {}\n", query.args));
         match crate::view::render(&document, view, function, &args) {
-            Ok(rendered) => out.push_str(&serde_json::to_string_pretty(&rendered).unwrap()),
+            Ok(rendered) => out.push_str(&flatten_view(&rendered)),
             Err(message) => out.push_str(&format!("error: {message}")),
         }
         out.push('\n');
     }
     Ok(out)
+}
+
+fn flatten_view(view: &View) -> String {
+    fn tree(nodes: &[TreeNode], depth: usize, out: &mut String) {
+        for node in nodes {
+            out.push_str(&format!("{}{}\n", "  ".repeat(depth), node.label));
+            tree(&node.children, depth + 1, out);
+        }
+    }
+    let mut out = format!("title: {}\nfunction: {}\n", view.title, view.function);
+    for section in &view.sections {
+        match section {
+            Section::Text { title, text } => out.push_str(&format!("== {title} ==\n{}\n", text.trim_end())),
+            Section::Dot { title, .. } => out.push_str(&format!("== {title} ==\n(dot graph)\n")),
+            Section::Table { title, columns, rows } => {
+                out.push_str(&format!("== {title} ==\n{}\n", columns.join(" | ")));
+                for row in rows {
+                    out.push_str(&format!("{}\n", row.join(" | ")));
+                }
+            }
+            Section::Tree { title, nodes } => {
+                out.push_str(&format!("== {title} ==\n"));
+                tree(nodes, 0, &mut out);
+            }
+            Section::Diff { title, from, to, text } => out.push_str(&format!("== {title} ({from} vs {to}) ==\n{}\n", text.trim_end())),
+        }
+    }
+    out.trim_end().to_owned()
 }
 
 fn render_format(input: &Input) -> Result<String, String> {

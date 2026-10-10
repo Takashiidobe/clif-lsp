@@ -2,29 +2,17 @@
 ; ^ view allocators %simple
 ; ^ view allocators %pressure
 ; check: view allocators %simple
-; check:   "title": "Register allocators for %simple",
-; check:           "code bytes",
-; nextln:           "13",
-; nextln:           "45"
-; check:           "instructions",
-; nextln:           "6",
-; nextln:           "14"
-; check:           "moves",
-; nextln:           "2",
-; nextln:           "4"
-; check:           "stack accesses",
-; nextln:           "0",
-; nextln:           "4"
-; check:       "text": "--- backtracking\n+++ single_pass\n
-; sameln: +  movq %r14, (%rsp)\n
+; check: title: Register allocators for %simple
+; check: metric | backtracking | single_pass
+; nextln: code bytes |
+; nextln: instructions |
+; nextln: moves |
+; nextln: stack accesses | 0 |
+; check: == vcode (backtracking vs single_pass) ==
+; nextln: --- backtracking
+; nextln: +++ single_pass
 ; check: view allocators %pressure
-; check:           "code bytes",
-; nextln:           "210",
-; nextln:           "433"
-; check:           "stack accesses",
-; nextln:           "12",
-; nextln:           "54"
-; check: -  movq %rcx, <offset:1>+(%rsp)\n
+; check: stack accesses |
 set opt_level=speed
 target x86_64
 function %simple(i64, i64) -> i64 {

@@ -101,12 +101,24 @@ Views:
   accesses.
 - `regalloc`: where the register allocator put each value. The function is
   optimized first, so the value numbers are those of the optimized CLIF, and it
-  is compiled with the file's allocator setting. Three sections: a `table` of
-  totals (`values placed`, `spills`, `reloads`, `moves`, `spill slots`,
-  `regalloc2 edits`), a `table` of assignments (`value`, `location`, `event`,
-  `from`, `until`), and a `dot` graph with one node per block, listing each
-  instruction with the locations of the values it defines. Spills are red,
-  reloads green and moves yellow.
+  is compiled with the file's allocator setting. Five sections: a `table` of
+  totals (`values placed`, `max register pressure`, `spills`, `reloads`,
+  `moves`, `spill slots`, `regalloc2 edits`), a `table` of assignments
+  (`value`, `location`, `event`, `from`, `until`), a `table` of register
+  pressure (`instruction`, `registers`, `values`), a `dot` live-range chart,
+  and a `dot` graph with one node per block, listing each instruction with the
+  locations of the values it defines. Spills are red, reloads green and moves
+  yellow.
+
+  Register pressure is the number of values held in registers at an
+  instruction, counting both its operands and its results. It only counts
+  values that carry a location, so it undercounts temporaries the lowering
+  creates. The live-range chart has one row per instruction and one column per
+  value. A cell shows the value's location where it starts and `|` while it
+  stays there; blue is a register, purple the stack, and the last column is
+  the pressure with the peak in bold. These are the locations the allocator
+  assigned to each CLIF value, not regalloc2's own live ranges; interference
+  and the reason for a spill are not available from the public API.
 
   A `location` is a register (`%rsi`) or a stack slot (`[cfa-80]`). `event` is
   `def` for a value's first location, `spill` when it moves from a register to

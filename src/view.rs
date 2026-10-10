@@ -201,6 +201,7 @@ fn regalloc_view(document: &Document, function: Option<&str>) -> Result<View, St
     let columns = |names: &[&str]| names.iter().map(|n| (*n).to_owned()).collect();
     let summary = vec![
         vec!["values placed".to_owned(), report.segments.iter().filter(|s| s.event == Event::Def).count().to_string()],
+        vec!["max register pressure".to_owned(), report.max_pressure().to_string()],
         vec!["spills".to_owned(), report.count(Event::Spill).to_string()],
         vec!["reloads".to_owned(), report.count(Event::Reload).to_string()],
         vec!["moves".to_owned(), report.count(Event::Move).to_string()],
@@ -215,6 +216,12 @@ fn regalloc_view(document: &Document, function: Option<&str>) -> Result<View, St
             vec![s.value.clone(), s.place.clone(), s.event.label().to_owned(), from, report.insts[s.to].clone()]
         })
         .collect();
+    let pressure: Vec<Vec<String>> = (0..report.insts.len())
+        .map(|inst| {
+            let live = report.in_registers(inst);
+            vec![report.insts[inst].clone(), live.len().to_string(), live.join(", ")]
+        })
+        .collect();
     Ok(View {
         schema: SCHEMA,
         view: "regalloc".to_owned(),
@@ -223,6 +230,8 @@ fn regalloc_view(document: &Document, function: Option<&str>) -> Result<View, St
         sections: vec![
             Section::Table { title: "Summary".to_owned(), columns: columns(&["metric", "count"]), rows: summary },
             Section::Table { title: "Assignments".to_owned(), columns: columns(&["value", "location", "event", "from", "until"]), rows: assignments },
+            Section::Table { title: "Register pressure".to_owned(), columns: columns(&["instruction", "registers", "values"]), rows: pressure },
+            Section::Dot { title: "Live ranges".to_owned(), dot: report.timeline_dot() },
             Section::Dot { title: "Allocation graph".to_owned(), dot: report.dot() },
         ],
     })

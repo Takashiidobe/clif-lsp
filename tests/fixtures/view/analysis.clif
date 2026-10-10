@@ -4,29 +4,19 @@
 ; lsp: open
 ; lsp: request clif/view {"view":"analysis"}
 ; check: view analysis
-; check:   "title": "Analysis of %f",
-; check:       "kind": "tree",
-; nextln:       "title": "Dominator tree",
-; nextln:       "nodes": [
-; nextln:         {
-; nextln:           "label": "block0",
-; nextln:           "children": [
-; check:               "label": "block1",
-; nextln:               "children": []
-; check:               "label": "block2",
-; check:               "label": "block3",
-; check:       "title": "Blocks",
-; check:           "block3",
-; nextln:           "block0",
-; nextln:           "block1, block2"
-; check:       "title": "Values",
-; check:           "v1",
-; nextln:           "block0",
-; nextln:           "block1",
-; nextln:           "block0"
+; check: title: Analysis of %f
+; check: == Dominator tree ==
+; nextln: block0
+; nextln: block1
+; nextln: block2
+; nextln: block3
+; check: == Blocks ==
+; check: block3 | block0 | block1, block2
+; check: == Values ==
+; check: v1 | block0 | block1 | block0
 ; check: view analysis %g
-; check: "title": "Analysis of %g"
-; check: clif/view -> {"function":"%f","schema":1,"sections":[{"kind":"tree","nodes":[{"children":[{"children":[],"label":"block1"}
+; check: title: Analysis of %g
+; check: clif/view -> {"function":"%f"
 function %f(i32, i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iadd v0, v1

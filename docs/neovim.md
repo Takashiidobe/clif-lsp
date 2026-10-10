@@ -205,9 +205,10 @@ For `tests/fixtures/analysis/diamond.clif`, `:ClifGraphImage` opens this:
 ## Register allocation
 
 `:ClifRegalloc [function]` shows where the register allocator put each value:
-the totals and the per-value assignments in a scratch buffer, and the block
-graph drawn as an image. Spills are red, reloads green and moves yellow. It
-needs Graphviz. Without `dot` you get the tables only.
+the totals, per-value assignments and register pressure in a scratch buffer, and
+two images: a live-range chart (instructions down, values across, with the
+pressure at each instruction) and the block graph. Spills are red, reloads green
+and moves yellow. It needs Graphviz. Without `dot` you get the tables only.
 
 ```lua
 vim.api.nvim_create_user_command('ClifRegalloc', function(o)

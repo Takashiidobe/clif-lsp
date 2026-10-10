@@ -37,6 +37,7 @@ pub struct Segment {
     pub value: String,
     pub place: String,
     pub event: Event,
+    pub in_register: bool,
     pub from: usize,
     pub to: usize,
 }
@@ -132,7 +133,7 @@ pub fn analyze(target: &Target) -> Result<Report, String> {
                 Some((_, true)) if !on_stack => Event::Reload,
                 Some(_) => Event::Move,
             };
-            segments.push(Segment { value: value.to_string(), place, event, from, to });
+            segments.push(Segment { value: value.to_string(), place, event, in_register: !on_stack, from, to });
             previous = Some((segments.len() - 1, on_stack));
         }
     }
@@ -183,6 +184,75 @@ impl Report {
 
     pub fn count(&self, event: Event) -> usize {
         self.segments.iter().filter(|s| s.event == event).count()
+    }
+
+    fn covering(&self, value: &str, inst: usize) -> Option<&Segment> {
+        self.segments.iter().rev().find(|s| s.value == value && s.from <= inst && inst <= s.to)
+    }
+
+    pub fn in_registers(&self, inst: usize) -> Vec<&str> {
+        let mut values: Vec<&str> = Vec::new();
+        for segment in self.segments.iter().filter(|s| s.in_register && s.from <= inst && inst <= s.to) {
+            if !values.contains(&segment.value.as_str()) {
+                values.push(&segment.value);
+            }
+        }
+        values
+    }
+
+    pub fn max_pressure(&self) -> usize {
+        (0..self.insts.len()).map(|inst| self.in_registers(inst).len()).max().unwrap_or(0)
+    }
+
+    fn placed_values(&self) -> Vec<&str> {
+        let mut values: Vec<&str> = Vec::new();
+        for segment in &self.segments {
+            if !values.contains(&segment.value.as_str()) {
+                values.push(&segment.value);
+            }
+        }
+        values
+    }
+
+    pub fn timeline_dot(&self) -> String {
+        let values = self.placed_values();
+        let peak = self.max_pressure();
+        let width = values.len() + 2;
+        let mut out = format!("digraph \"{} live ranges\" {{\n", self.name);
+        out.push_str("    node [shape=plaintext fontname=monospace];\n");
+        out.push_str("    labelloc=b;\n    label=\"blue: in a register, purple: on the stack, red: spill, green: reload, yellow: move, bold: peak pressure\";\n");
+        out.push_str("    \"live ranges\" [label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"3\">\n");
+        out.push_str("        <TR><TD BGCOLOR=\"#d8d8d8\" ALIGN=\"LEFT\"><B>instruction</B></TD>");
+        for value in &values {
+            out.push_str(&format!("<TD BGCOLOR=\"#d8d8d8\"><B>{}</B></TD>", escape(value)));
+        }
+        out.push_str("<TD BGCOLOR=\"#d8d8d8\"><B>regs</B></TD></TR>\n");
+        for block in &self.blocks {
+            out.push_str(&format!("        <TR><TD COLSPAN=\"{width}\" BGCOLOR=\"#eeeeee\" ALIGN=\"LEFT\"><B>{}</B></TD></TR>\n", escape(&block.name)));
+            for &inst in &block.insts {
+                out.push_str(&format!("        <TR><TD ALIGN=\"LEFT\">{}</TD>", escape(&self.insts[inst])));
+                for value in &values {
+                    match self.covering(value, inst) {
+                        None => out.push_str("<TD></TD>"),
+                        Some(segment) => {
+                            let starts = segment.from == inst;
+                            let color = match (starts, segment.event, segment.in_register) {
+                                (true, Event::Def, _) | (false, _, true) => "#dbe8f7",
+                                (true, event, _) => event.color(),
+                                (false, _, false) => "#e6d5f0",
+                            };
+                            let text = if starts { escape(&segment.place) } else { "|".to_owned() };
+                            out.push_str(&format!("<TD BGCOLOR=\"{color}\">{text}</TD>"));
+                        }
+                    }
+                }
+                let live = self.in_registers(inst).len();
+                let live = if live == peak && peak > 0 { format!("<B>{live}</B>") } else { live.to_string() };
+                out.push_str(&format!("<TD>{live}</TD></TR>\n"));
+            }
+        }
+        out.push_str("    </TABLE>>];\n}\n");
+        out
     }
 
     pub fn dot(&self) -> String {

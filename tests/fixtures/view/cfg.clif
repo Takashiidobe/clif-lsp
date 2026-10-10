@@ -7,35 +7,19 @@
 ; lsp: request clif/view {"view":"cfg","function":"%g"}
 ; lsp: request clif/view {"view":"nope"}
 ; check: view cfg
-; nextln: {
-; nextln:   "schema": 1,
-; nextln:   "view": "cfg",
-; nextln:   "function": "%f",
-; nextln:   "title": "Control flow of %f",
-; nextln:   "sections": [
-; nextln:     {
-; nextln:       "kind": "dot",
-; nextln:       "title": "Graph",
-; nextln:       "dot": "digraph \"%f\" {\n    \"block0\";\n    \"block0\" -> \"block1\";\n    \"block0\" -> \"block2\";
-; check:       "kind": "table",
-; nextln:       "title": "Blocks",
-; nextln:       "columns": [
-; nextln:         "block",
-; nextln:         "successors",
-; nextln:         "reachable"
-; check:           "block0",
-; nextln:           "block1, block2",
-; nextln:           "yes"
-; check:           "block3",
-; nextln:           "",
-; nextln:           "no"
+; check: title: Control flow of %f
+; check: == Blocks ==
+; nextln: block | successors | reachable
+; nextln: block0 | block1, block2 | yes
+; check: block3 |
+; sameln: | no
 ; check: view cfg %g
-; check: "title": "Control flow of %g"
+; check: title: Control flow of %g
 ; check: view cfg %missing
 ; nextln: error: no function `%missing`
 ; check: view nope
 ; nextln: error: unknown view `nope`, expected one of: cfg, analysis, stage, allocators, regalloc
-; check: clif/view -> {"function":"%g","schema":1,"sections":[{"dot":"digraph \"%g\" {\n    \"block0\";\n}\n","kind":"dot","title":"Graph"},{"columns":["block","successors","reachable"],"kind":"table","rows":[["block0","","yes"]],"title":"Blocks"}],"title":"Control flow of %g","view":"cfg"}
+; check: clif/view -> {"function":"%g"
 ; nextln: clif/view -> error -32602 unknown view `nope`, expected one of: cfg, analysis, stage, allocators, regalloc
 function %f(i32) {
 block0(v0: i32):

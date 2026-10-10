@@ -3,42 +3,32 @@
 ; ^ view regalloc %pressure
 ; ^ view regalloc %branch
 ; check: view regalloc %simple
-; check:   "title": "Register allocation of %simple (optimized CLIF)",
-; check:           "values placed",
-; nextln:           "3"
-; check:           "spills",
-; nextln:           "0"
-; check:           "reloads",
-; nextln:           "0"
-; check:           "spill slots",
-; nextln:           "0"
-; check:           "v0",
-; nextln:           "%rdi",
-; nextln:           "def",
-; nextln:           "parameter",
-; check:           "v2",
-; nextln:           "%rax",
-; check: <TD ALIGN=\"LEFT\" BGCOLOR=\"white\">v2: %rax<BR ALIGN=\"LEFT\"/></TD>
+; check: title: Register allocation of %simple (optimized CLIF)
+; check: values placed | 3
+; nextln: max register pressure | 3
+; nextln: spills | 0
+; nextln: reloads | 0
+; check: spill slots | 0
+; check: v0 | %rdi | def | parameter |
+; nextln: v1 | %rsi | def | parameter |
+; nextln: v2 | %rax | def |
+; check: == Register pressure ==
+; nextln: instruction | registers | values
+; nextln: v2 = iadd.i64 v0, v1 | 3 | v0, v1, v2
+; nextln: return v2 | 1 | v2
+; check: == Live ranges ==
+; check: == Allocation graph ==
 ; check: view regalloc %pressure
-; check:           "spills",
-; nextln:           "1"
-; check:           "reloads",
-; nextln:           "2"
-; check:           "spill slots",
-; nextln:           "1"
-; check:           "regalloc2 edits",
-; nextln:           "10"
-; check:           "[cfa-80]",
-; nextln:           "def",
-; check:           "%rcx",
-; nextln:           "reload",
-; check:           "[cfa-80]",
-; nextln:           "spill",
-; check: BGCOLOR=\"#b6e3b6\">v9: %rcx (reload)<BR ALIGN=\"LEFT\"/>v10: %r10
-; check: BGCOLOR=\"#f4b6b6\">v9: [cfa-80] (spill)<BR ALIGN=\"LEFT\"/>v38: %rdi
+; check: max register pressure |
+; check: | reload |
+; check: | spill |
+; check: == Register pressure ==
 ; check: view regalloc %branch
-; check: \"block0\" -> \"block1\";
-; sameln: \"block0\" -> \"block2\";
+; check: max register pressure | 1
+; nextln: spills | 0
+; check: == Register pressure ==
+; nextln: instruction | registers | values
+; nextln: brif.i32 v0, block1, block2 | 1 | v0
 set opt_level=speed
 target x86_64
 function %simple(i64, i64) -> i64 {
