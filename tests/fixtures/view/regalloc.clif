@@ -16,8 +16,8 @@
 ; nextln: instruction | registers | values
 ; nextln: v2 = iadd.i64 v0, v1 | 3 | v0, v1, v2
 ; nextln: return v2 | 1 | v2
-; check: == Live ranges ==
-; check: == Allocation graph ==
+; check: == Allocation map ==
+; nextln: (html page)
 ; check: view regalloc %pressure
 ; check: max register pressure |
 ; check: | reload |

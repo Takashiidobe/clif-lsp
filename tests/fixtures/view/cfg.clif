@@ -8,6 +8,8 @@
 ; lsp: request clif/view {"view":"nope"}
 ; check: view cfg
 ; check: title: Control flow of %f
+; check: == Graph ==
+; nextln: (html page)
 ; check: == Blocks ==
 ; nextln: block | successors | reachable
 ; nextln: block0 | block1, block2 | yes

@@ -7,6 +7,7 @@ pub mod diagnostics;
 pub mod document;
 pub mod formatting;
 pub mod hover;
+pub mod html;
 pub mod inference;
 pub mod inlay;
 pub mod lexer;

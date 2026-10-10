@@ -23,7 +23,7 @@ pub struct View {
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum Section {
     Text { title: String, text: String },
-    Dot { title: String, dot: String },
+    Html { title: String, html: String },
     Table { title: String, columns: Vec<String>, rows: Vec<Vec<String>> },
     Tree { title: String, nodes: Vec<TreeNode> },
     Diff { title: String, from: String, to: String, text: String },
@@ -73,7 +73,7 @@ fn cfg_view(document: &Document, function: Option<&str>) -> Result<View, String>
         function: graph.name.clone(),
         title: format!("Control flow of {}", graph.name),
         sections: vec![
-            Section::Dot { title: "Graph".to_owned(), dot: graph.dot.clone() },
+            Section::Html { title: "Graph".to_owned(), html: cfg::html(&graph.name, &graph.blocks) },
             Section::Table {
                 title: "Blocks".to_owned(),
                 columns: ["block", "successors", "reachable"].map(str::to_owned).to_vec(),
@@ -224,6 +224,7 @@ fn provenance_view(document: &Document, function: Option<&str>) -> Result<View, 
         function: report.name.clone(),
         sections: vec![
             Section::Table { title: "Summary".to_owned(), columns: columns(&["metric", "count"]), rows: summary },
+            Section::Html { title: "Provenance map".to_owned(), html: report.html() },
             Section::Table { title: "Optimized instructions".to_owned(), columns: columns(&["block", "instruction", "status", "origin"]), rows: instructions },
             Section::Table { title: "No longer present".to_owned(), columns: columns(&["input instruction"]), rows: removed },
         ],
@@ -266,8 +267,7 @@ fn regalloc_view(document: &Document, function: Option<&str>) -> Result<View, St
             Section::Table { title: "Summary".to_owned(), columns: columns(&["metric", "count"]), rows: summary },
             Section::Table { title: "Assignments".to_owned(), columns: columns(&["value", "location", "event", "from", "until"]), rows: assignments },
             Section::Table { title: "Register pressure".to_owned(), columns: columns(&["instruction", "registers", "values"]), rows: pressure },
-            Section::Dot { title: "Live ranges".to_owned(), dot: report.timeline_dot() },
-            Section::Dot { title: "Allocation graph".to_owned(), dot: report.dot() },
+            Section::Html { title: "Allocation map".to_owned(), html: report.html() },
         ],
     })
 }

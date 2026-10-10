@@ -117,8 +117,8 @@ vim.api.nvim_create_user_command('ClifView', function(o)
           table.insert(out, s.text)
         elseif s.kind == 'diff' then
           table.insert(out, s.text)
-        elseif s.kind == 'dot' then
-          table.insert(out, s.dot)
+        elseif s.kind == 'html' then
+          table.insert(out, '(web page: use :ClifCfg, :ClifRegalloc or :ClifProvenance)')
         elseif s.kind == 'table' then
           table.insert(out, table.concat(s.columns, '\t'))
           for _, row in ipairs(s.rows) do
@@ -150,10 +150,15 @@ end, { nargs = '+' })
   defaults to the first one. `args` is a JSON object and needs the function
   before it, as in `:ClifView stage %main {"stage":"vcode"}`.
   `:ClifView allocators` compares the two register allocators.
-  `:ClifView provenance %main` shows which input instruction each optimized
-  instruction came from, and which were folded away or created.
+  `:ClifView provenance %main` shows the same data as text only.
+- `:ClifCfg [function]` opens the control flow graph as a web page, with each
+  block's instructions in its box. Unlike `:ClifGraphImage` it needs no
+  Graphviz. See [Register allocation](#register-allocation) for the setup.
 - `:ClifRegalloc [function]` shows the register assignments, spills and reloads
-  as tables and a drawn graph. See [Register allocation](#register-allocation).
+  as tables and a web page. See [Register allocation](#register-allocation).
+- `:ClifProvenance [function]` shows which input instruction each optimized
+  instruction came from, and which were folded away or created, as tables and a
+  web page. See [Register allocation](#register-allocation) for the setup.
 
 ## Drawing the graph
 
@@ -208,46 +213,59 @@ For `tests/fixtures/analysis/diamond.clif`, `:ClifGraphImage` opens this:
 
 `:ClifRegalloc [function]` shows where the register allocator put each value:
 the totals, per-value assignments and register pressure in a scratch buffer, and
-two images: a live-range chart (instructions down, values across, with the
-pressure at each instruction) and the block graph. Spills are red, reloads green
-and moves yellow. It needs Graphviz. Without `dot` you get the tables only.
+a web page in your browser with a chart of instructions down and values across.
+Each cell shows where the value lives, with a bar for the registers live at each
+instruction. Spills are red, reloads green and moves yellow. The page is plain
+HTML, so it needs no Graphviz, and the browser handles zoom and scrolling. The
+same helper drives `:ClifCfg` and `:ClifProvenance` below.
 
 ```lua
-vim.api.nvim_create_user_command('ClifRegalloc', function(o)
-  request('clif/view', { view = 'regalloc', ['function'] = o.fargs[1] }, function(v)
-    local out = { v.title, '' }
-    for _, s in ipairs(v.sections) do
-      if s.kind == 'table' then
-        table.insert(out, '== ' .. s.title .. ' ==')
-        table.insert(out, table.concat(s.columns, '\t'))
-        for _, row in ipairs(s.rows) do
-          table.insert(out, table.concat(row, '\t'))
-        end
-        table.insert(out, '')
-      elseif s.kind == 'dot' and vim.fn.executable('dot') == 1 then
-        local png = vim.fn.tempname() .. '.png'
-        local done = vim.system({ 'dot', '-Tpng', '-Gdpi=150', '-o', png }, { stdin = s.dot }):wait()
-        if done.code ~= 0 then
-          vim.notify(done.stderr, vim.log.levels.ERROR)
-        elseif o.bang then
-          vim.cmd('split ' .. vim.fn.fnameescape(png))
-        else
-          vim.ui.open(png)
+local function graphical_view(command, view)
+  vim.api.nvim_create_user_command(command, function(o)
+    request('clif/view', { view = view, ['function'] = o.fargs[1] }, function(v)
+      local out = { v.title, '' }
+      for _, s in ipairs(v.sections) do
+        if s.kind == 'table' then
+          table.insert(out, '== ' .. s.title .. ' ==')
+          table.insert(out, table.concat(s.columns, '\t'))
+          for _, row in ipairs(s.rows) do
+            table.insert(out, table.concat(row, '\t'))
+          end
+          table.insert(out, '')
+        elseif s.kind == 'html' then
+          local page = vim.fn.tempname() .. '.html'
+          vim.fn.writefile(vim.split(s.html, '\n'), page)
+          vim.ui.open(page)
         end
       end
-    end
-    return table.concat(out, '\n')
-  end)
-end, { nargs = '?', bang = true })
+      return table.concat(out, '\n')
+    end)
+  end, { nargs = '?' })
+end
+
+graphical_view('ClifCfg', 'cfg')
+graphical_view('ClifRegalloc', 'regalloc')
+graphical_view('ClifProvenance', 'provenance')
 ```
 
-The graph opens in your system image viewer (`vim.ui.open`, so `xdg-open` on
-Linux), where you can zoom and scroll. A function with many instructions makes
-a tall block that is unreadable when squeezed into a split. `:ClifRegalloc!`
-opens it in a split inside the editor instead, which suits short functions.
+The page opens through `vim.ui.open`, so with `xdg-open` on Linux.
+
+`:ClifCfg [function]` draws the control flow graph the same way: one box per
+block listing its instructions, edges below it, loops looping around the right
+edge. The entry block has a blue edge and unreachable blocks are dashed.
 
 The value numbers are those of the optimized function, so they can differ from
 the file. See the `regalloc` view in [custom requests](requests.md#clifview).
+
+`:ClifProvenance [function]` uses the same helper for the optimizer. The tables
+go to the scratch buffer, and a web page opens in your browser with the input
+instructions on the left and the optimized ones on the right, joined by a curve
+wherever the optimizer kept an instruction's source tag. Hover a row to
+highlight its link and the row at the other end. Inputs that are gone are red,
+changed outputs yellow and new ones green; a new output has no curve into it
+because Cranelift records no provenance for instructions it creates. The page
+is plain HTML and SVG, so it needs no Graphviz, and the browser handles zoom
+and scrolling.
 
 ## Trying it on the fixtures
 

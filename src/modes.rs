@@ -310,7 +310,7 @@ fn flatten_view(view: &View) -> String {
     for section in &view.sections {
         match section {
             Section::Text { title, text } => out.push_str(&format!("== {title} ==\n{}\n", text.trim_end())),
-            Section::Dot { title, .. } => out.push_str(&format!("== {title} ==\n(dot graph)\n")),
+            Section::Html { title, .. } => out.push_str(&format!("== {title} ==\n(html page)\n")),
             Section::Table { title, columns, rows } => {
                 out.push_str(&format!("== {title} ==\n{}\n", columns.join(" | ")));
                 for row in rows {

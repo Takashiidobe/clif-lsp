@@ -73,7 +73,8 @@ Result: `{ schema, view, function, title, sections }`.
 Section kinds:
 
 - `text`: `{ text }`, preformatted plain text.
-- `dot`: `{ dot }`, Graphviz DOT source to be laid out by the client.
+- `html`: `{ html }`, a complete standalone HTML page with inline CSS, SVG and
+  script, no external requests. Save it to a file and open it in a browser.
 - `table`: `{ columns, rows }`. `columns` is a list of headings and each row is
   a list of strings, one per column.
 - `tree`: `{ nodes }`, where each node is `{ label, children }` and `children`
@@ -83,8 +84,9 @@ Section kinds:
 
 Views:
 
-- `cfg`: a `dot` section with the control flow graph and a `table` section with
-  one row per block (`block`, `successors`, `reachable`).
+- `cfg`: an `html` section with the control flow graph, one box per block
+  listing its instructions, and a `table` section with one row per block
+  (`block`, `successors`, `reachable`).
 - `analysis`: a `tree` section with the dominator tree rooted at the entry
   block, a `table` of blocks (`block`, `immediate dominator`, `predecessors`)
   and a `table` of values (`value`, `defined in`, `live in`, `live out`).
@@ -101,22 +103,21 @@ Views:
   accesses.
 - `regalloc`: where the register allocator put each value. The function is
   optimized first, so the value numbers are those of the optimized CLIF, and it
-  is compiled with the file's allocator setting. Five sections: a `table` of
+  is compiled with the file's allocator setting. Four sections: a `table` of
   totals (`values placed`, `max register pressure`, `spills`, `reloads`,
   `moves`, `spill slots`, `regalloc2 edits`), a `table` of assignments
   (`value`, `location`, `event`, `from`, `until`), a `table` of register
-  pressure (`instruction`, `registers`, `values`), a `dot` live-range chart,
-  and a `dot` graph with one node per block, listing each instruction with the
-  locations of the values it defines. Spills are red, reloads green and moves
-  yellow.
+  pressure (`instruction`, `registers`, `values`), and an `html` allocation
+  map. Spills are red, reloads green and moves yellow.
 
   Register pressure is the number of values held in registers at an
   instruction, counting both its operands and its results. It only counts
   values that carry a location, so it undercounts temporaries the lowering
-  creates. The live-range chart has one row per instruction and one column per
-  value. A cell shows the value's location where it starts and `|` while it
-  stays there; blue is a register, purple the stack, and the last column is
-  the pressure with the peak in bold. These are the locations the allocator
+  creates. The allocation map has one row per instruction, grouped by block
+  with its successors, and one column per value. A cell shows the value's
+  location where it starts and `|` while it stays there; blue is a register,
+  purple the stack, and the last column is the pressure as a bar with the peak
+  in bold. These are the locations the allocator
   assigned to each CLIF value, not regalloc2's own live ranges; interference
   and the reason for a spill are not available from the public API.
 
@@ -130,11 +131,13 @@ Views:
   where a value lives, not why the allocator chose it.
 - `provenance`: which input instruction each optimized instruction came from.
   Every input instruction is tagged with a unique source location, the function
-  is optimized, and the tags are read back. Three sections: a `table` of counts
+  is optimized, and the tags are read back. Four sections: a `table` of counts
   (`input instructions`, `unchanged`, `changed`, `new, no provenance
-  available`, `no longer present`), a `table` of optimized instructions
-  (`block`, `instruction`, `status`, `origin`), and a `table` of input
-  instructions whose tag no longer appears.
+  available`, `no longer present`), an `html` page with the input instructions
+  on the left, the optimized ones on the right and a curve wherever a tag
+  survived (red: no longer present, yellow: changed, green: new), a `table` of
+  optimized instructions (`block`, `instruction`, `status`, `origin`), and a
+  `table` of input instructions whose tag no longer appears.
 
   `status` is `unchanged` or `changed` when the tag survived, comparing the
   instruction text before and after, and `new` when the optimizer created the

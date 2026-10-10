@@ -5,6 +5,8 @@
 ; check: view provenance %fold
 ; check: title: Optimization provenance of %fold
 ; check: input instructions | 5
+; check: == Provenance map ==
+; nextln: (html page)
 ; check: iconst.i64 84 | new | no provenance available
 ; check: | changed | v4 = iadd.i64 v0, v3
 ; check: return v4 | unchanged | return v4

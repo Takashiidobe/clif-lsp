@@ -3,6 +3,7 @@ use cranelift_codegen::flowgraph::ControlFlowGraph;
 use cranelift_codegen::ir::{Block, Inst, RelSourceLoc, SourceLoc, Value, ValueDef, ValueLabel, ValueLabelAssignments, ValueLabelStart};
 use cranelift_codegen::{Context, LabelValueLoc};
 
+use crate::html::{self, escape};
 use crate::stages::{self, Target};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -23,14 +24,6 @@ impl Event {
         }
     }
 
-    fn color(self) -> &'static str {
-        match self {
-            Event::Def => "white",
-            Event::Move => "#f7e7a0",
-            Event::Reload => "#b6e3b6",
-            Event::Spill => "#f4b6b6",
-        }
-    }
 }
 
 pub struct Segment {
@@ -173,9 +166,24 @@ pub fn analyze(target: &Target) -> Result<Report, String> {
     })
 }
 
-fn escape(text: &str) -> String {
-    text.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
-}
+const CSS: &str = r#"
+.scroll { overflow: auto; max-height: calc(100vh - 110px); }
+table { border-collapse: collapse; }
+th, td { border: 1px solid var(--border); padding: 0 8px; height: var(--row); white-space: pre; text-align: center; }
+th { background: var(--head); position: sticky; top: 0; z-index: 2; }
+th:first-child, td:first-child { position: sticky; left: 0; text-align: left; background: var(--bg); z-index: 1; }
+th:first-child { z-index: 3; background: var(--head); }
+tr.block td { background: var(--head); font-weight: 600; text-align: left; }
+tr.block td span { color: var(--muted); font-weight: 400; margin-left: 12px; }
+td.reg { background: var(--reg); }
+td.stack { background: var(--stack); }
+td.spill { background: var(--spill); }
+td.reload { background: var(--reload); }
+td.move { background: var(--move); }
+td.pressure { text-align: left; min-width: 160px; }
+td.pressure i { display: inline-block; height: 10px; background: var(--hl); opacity: 0.55; margin-right: 8px; vertical-align: -1px; }
+td.pressure.peak b { font-weight: 700; }
+"#;
 
 impl Report {
     pub fn is_param(&self, value: &str) -> bool {
@@ -214,85 +222,45 @@ impl Report {
         values
     }
 
-    pub fn timeline_dot(&self) -> String {
+    pub fn html(&self) -> String {
         let values = self.placed_values();
         let peak = self.max_pressure();
         let width = values.len() + 2;
-        let mut out = format!("digraph \"{} live ranges\" {{\n", self.name);
-        out.push_str("    node [shape=plaintext fontname=monospace];\n");
-        out.push_str("    labelloc=b;\n    label=\"blue: in a register, purple: on the stack, red: spill, green: reload, yellow: move, bold: peak pressure\";\n");
-        out.push_str("    \"live ranges\" [label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"3\">\n");
-        out.push_str("        <TR><TD BGCOLOR=\"#d8d8d8\" ALIGN=\"LEFT\"><B>instruction</B></TD>");
+        let mut body = String::from("<div class=\"scroll mono\"><table>\n<tr><th>instruction</th>");
         for value in &values {
-            out.push_str(&format!("<TD BGCOLOR=\"#d8d8d8\"><B>{}</B></TD>", escape(value)));
+            body.push_str(&format!("<th>{}</th>", escape(value)));
         }
-        out.push_str("<TD BGCOLOR=\"#d8d8d8\"><B>regs</B></TD></TR>\n");
+        body.push_str("<th>registers live</th></tr>\n");
         for block in &self.blocks {
-            out.push_str(&format!("        <TR><TD COLSPAN=\"{width}\" BGCOLOR=\"#eeeeee\" ALIGN=\"LEFT\"><B>{}</B></TD></TR>\n", escape(&block.name)));
+            let successors: Vec<&str> = block.successors.iter().map(|&target| self.blocks[target].name.as_str()).collect();
+            let edges = if successors.is_empty() { String::new() } else { format!("<span>&rarr; {}</span>", escape(&successors.join(", "))) };
+            body.push_str(&format!("<tr class=\"block\"><td colspan=\"{width}\">{}{edges}</td></tr>\n", escape(&block.name)));
             for &inst in &block.insts {
-                out.push_str(&format!("        <TR><TD ALIGN=\"LEFT\">{}</TD>", escape(&self.insts[inst])));
+                body.push_str(&format!("<tr><td>{}</td>", escape(&self.insts[inst])));
                 for value in &values {
                     match self.covering(value, inst) {
-                        None => out.push_str("<TD></TD>"),
+                        None => body.push_str("<td></td>"),
                         Some(segment) => {
                             let starts = segment.from == inst;
-                            let color = match (starts, segment.event, segment.in_register) {
-                                (true, Event::Def, _) | (false, _, true) => "#dbe8f7",
-                                (true, event, _) => event.color(),
-                                (false, _, false) => "#e6d5f0",
+                            let class = match (starts, segment.event, segment.in_register) {
+                                (true, Event::Def, _) | (false, _, true) => "reg",
+                                (true, Event::Spill, _) => "spill",
+                                (true, Event::Reload, _) => "reload",
+                                (true, Event::Move, _) => "move",
+                                (false, _, false) => "stack",
                             };
                             let text = if starts { escape(&segment.place) } else { "|".to_owned() };
-                            out.push_str(&format!("<TD BGCOLOR=\"{color}\">{text}</TD>"));
+                            body.push_str(&format!("<td class=\"{class}\">{text}</td>"));
                         }
                     }
                 }
                 let live = self.in_registers(inst).len();
-                let live = if live == peak && peak > 0 { format!("<B>{live}</B>") } else { live.to_string() };
-                out.push_str(&format!("<TD>{live}</TD></TR>\n"));
+                let (class, count) = if live == peak && peak > 0 { ("pressure peak", format!("<b>{live}</b>")) } else { ("pressure", live.to_string()) };
+                body.push_str(&format!("<td class=\"{class}\"><i style=\"width:{}px\"></i>{count}</td></tr>\n", live * 10));
             }
         }
-        out.push_str("    </TABLE>>];\n}\n");
-        out
-    }
-
-    pub fn dot(&self) -> String {
-        let mut out = format!("digraph \"{}\" {{\n", self.name);
-        out.push_str("    node [shape=plaintext fontname=monospace];\n    edge [fontname=monospace];\n");
-        out.push_str("    labelloc=b;\n    label=\"red: spill, green: reload, yellow: move\";\n");
-        for block in &self.blocks {
-            out.push_str(&format!("    \"{}\" [label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">\n", block.name));
-            out.push_str(&format!("        <TR><TD COLSPAN=\"2\" BGCOLOR=\"#d8d8d8\" ALIGN=\"LEFT\"><B>{}</B></TD></TR>\n", escape(&block.name)));
-            for (name, declaration) in &block.params {
-                let place = self.segments.iter().find(|s| &s.value == name).map_or("", |s| s.place.as_str());
-                out.push_str(&format!("        <TR><TD ALIGN=\"LEFT\">{}</TD><TD ALIGN=\"LEFT\">{}</TD></TR>\n", escape(declaration), escape(place)));
-            }
-            for &inst in &block.insts {
-                let notes: Vec<&Segment> = self
-                    .segments
-                    .iter()
-                    .filter(|s| s.from == inst && !(s.event == Event::Def && self.is_param(&s.value)))
-                    .collect();
-                let color = notes.iter().map(|s| s.event).max().map_or("white", Event::color);
-                let text = notes
-                    .iter()
-                    .map(|s| match s.event {
-                        Event::Def => format!("{}: {}<BR ALIGN=\"LEFT\"/>", s.value, escape(&s.place)),
-                        event => format!("{}: {} ({})<BR ALIGN=\"LEFT\"/>", s.value, escape(&s.place), event.label()),
-                    })
-                    .collect::<String>();
-                out.push_str(&format!(
-                    "        <TR><TD ALIGN=\"LEFT\">{}</TD><TD ALIGN=\"LEFT\" BGCOLOR=\"{color}\">{text}</TD></TR>\n",
-                    escape(&self.insts[inst])
-                ));
-            }
-            out.push_str("    </TABLE>>];\n");
-        }
-        for block in &self.blocks {
-            for &target in &block.successors {
-                out.push_str(&format!("    \"{}\" -> \"{}\";\n", block.name, self.blocks[target].name));
-            }
-        }
-        out.push_str("}\n");
-        out
+        body.push_str("</table></div>\n");
+        let legend = [("reg", "in a register"), ("stack", "on the stack"), ("spill", "spill"), ("reload", "reload"), ("move", "move")];
+        html::page(&format!("Register allocation of {}", self.name), &legend, CSS, &body, "")
     }
 }
