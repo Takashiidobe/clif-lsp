@@ -118,7 +118,7 @@ vim.api.nvim_create_user_command('ClifView', function(o)
         elseif s.kind == 'diff' then
           table.insert(out, s.text)
         elseif s.kind == 'html' then
-          table.insert(out, '(web page: use :ClifCfg, :ClifRegalloc, :ClifProvenance or :ClifEgraph)')
+          table.insert(out, '(web page: use :ClifCfg, :ClifRegalloc, :ClifProvenance, :ClifEgraph, :ClifLiveRanges, :ClifUseCounts or :ClifDefUse)')
         elseif s.kind == 'table' then
           table.insert(out, table.concat(s.columns, '\t'))
           for _, row in ipairs(s.rows) do
@@ -146,7 +146,8 @@ end, { nargs = '+' })
   `:ClifGraphImage %main`. See [Drawing the graph](#drawing-the-graph).
 - `:ClifAnalysis` shows dominators and liveness as a Lua table.
 - `:ClifView view [function] [args]` shows a `clif/view` view: `cfg`,
-  `analysis`, `stage`, `allocators`, `regalloc`, `provenance` or `egraph`. The function
+  `analysis`, `def_use`, `use_counts`, `live_ranges`, `stage`, `allocators`,
+  `regalloc`, `provenance` or `egraph`. The function
   defaults to the first one. `args` is a JSON object and needs the function
   before it, as in `:ClifView stage %main {"stage":"vcode"}`.
   `:ClifView allocators` compares the two register allocators.
@@ -223,9 +224,13 @@ HTML, so it needs no Graphviz, and the browser handles zoom and scrolling. The
 same helper drives `:ClifCfg` and `:ClifProvenance` below.
 
 ```lua
-local function graphical_view(command, view)
+local function graphical_view(command, view, request_of)
   vim.api.nvim_create_user_command(command, function(o)
-    request('clif/view', { view = view, ['function'] = o.fargs[1] }, function(v)
+    local fn, args = o.fargs[1], nil
+    if request_of then
+      fn, args = request_of(o.fargs)
+    end
+    request('clif/view', { view = view, ['function'] = fn, args = args }, function(v)
       local out = { v.title, '' }
       for _, s in ipairs(v.sections) do
         if s.kind == 'table' then
@@ -243,7 +248,7 @@ local function graphical_view(command, view)
       end
       return table.concat(out, '\n')
     end)
-  end, { nargs = '?' })
+  end, { nargs = '*' })
 end
 
 graphical_view('ClifCfg', 'cfg')
@@ -283,6 +288,44 @@ graphical_view('ClifEgraph', 'egraph')
 It shows nothing useful with `set opt_level=none`, since the egraph pass does
 not run.
 
+## Live ranges
+
+`:ClifLiveRanges [function]` shows where each value of the file is live. The
+pressure table (how many values are live at each block header and instruction)
+goes to the scratch buffer, and a web page opens with instructions down and
+values across. A cell reads `def` where the value is defined, `|` while it is
+live and `use` at its last use in a block. A value that lives out of a block
+stays live to the block's end. Unlike `:ClifRegalloc` it works on the file as
+written, with no `target` line needed. Add it next to the other
+`graphical_view` calls:
+
+```lua
+graphical_view('ClifLiveRanges', 'live_ranges')
+```
+
+## Uses
+
+`:ClifUseCounts [function]` lists the values with no uses and the values with
+exactly one use, with the instruction that uses it. The tables go to the
+scratch buffer and the same two tables open as a web page.
+
+`:ClifDefUse [value] [function] [depth]` shows where a value is defined and the
+instructions that use it. Without a value it takes the word under the cursor, so
+put the cursor on `v2` and run `:ClifDefUse`. The page shows the uses as a tree
+you can fold. A `depth` of 2 or more also shows the uses of those instructions'
+results; the default is 1. Block parameters are not followed through branches,
+so a `jump block3(v3)` ends the tree.
+
+Add both next to the other `graphical_view` calls:
+
+```lua
+graphical_view('ClifUseCounts', 'use_counts')
+graphical_view('ClifDefUse', 'def_use', function(fargs)
+  local value = fargs[1] or vim.fn.expand('<cword>')
+  return fargs[2], { value = value, depth = tonumber(fargs[3]) }
+end)
+```
+
 ## Trying it on the fixtures
 
 The repository's test fixtures make good sample files. Build the server with
@@ -303,6 +346,9 @@ Then open a fixture and run the command in the table.
 | `stages/views.clif`              | `:ClifStage`, `:ClifStage vcode`.                   |
 | `view/regalloc.clif`             | `:ClifRegalloc %pressure` for a spill and reloads.  |
 | `view/egraph_view.clif`          | `:ClifEgraph %demo` for rewritten forms.            |
+| `view/live_ranges.clif`          | `:ClifLiveRanges` for a diamond of live ranges.     |
+| `view/def_use.clif`              | `:ClifDefUse v2 %f 2` for a two-level use tree.     |
+| `view/use_counts.clif`           | `:ClifUseCounts` for dead and single-use values.    |
 | `calls/hierarchy.clif`           | `:lua vim.lsp.buf.incoming_calls()` on a name.      |
 | `actions/unknown_opcode.clif`    | `gra` on the bad opcode.                            |
 | `actions/undefined_names.clif`   | `gra` on an undefined value, block, or declaration. |

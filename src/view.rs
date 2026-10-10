@@ -157,6 +157,8 @@ fn def_use_view(document: &Document, function: Option<&str>, args: &Value) -> Re
     let function = pick_function(document, function)?;
     let name = function_name(document, function);
     let definition = def_use::definition(document, function, value).ok_or_else(|| format!("no value `{value}` in {name}"))?;
+    let nodes = def_use::uses(document, function, value, depth);
+    let page = def_use::html(&name, value, &definition, &nodes);
     Ok(View {
         schema: SCHEMA,
         view: "def_use".to_owned(),
@@ -168,7 +170,8 @@ fn def_use_view(document: &Document, function: Option<&str>, args: &Value) -> Re
                 columns: ["value", "block", "instruction"].map(str::to_owned).to_vec(),
                 rows: vec![vec![value.to_owned(), definition.block, definition.text]],
             },
-            Section::Tree { title: "Uses".to_owned(), nodes: def_use::uses(document, function, value, depth) },
+            Section::Tree { title: "Uses".to_owned(), nodes },
+            Section::Html { title: "Uses page".to_owned(), html: page },
         ],
     })
 }
@@ -200,6 +203,7 @@ fn use_counts_view(document: &Document, function: Option<&str>) -> Result<View, 
     let function = pick_function(document, function)?;
     let name = function_name(document, function);
     let counts = def_use::use_counts(document, function);
+    let page = def_use::counts_html(&name, &counts);
     let columns = |names: &[&str]| names.iter().map(|n| (*n).to_owned()).collect();
     let dead = counts.iter().filter(|c| c.count == 0).map(|c| vec![c.value.clone(), c.block.clone(), c.definition.clone()]).collect();
     let single = counts
@@ -215,6 +219,7 @@ fn use_counts_view(document: &Document, function: Option<&str>) -> Result<View, 
         sections: vec![
             Section::Table { title: "Dead values".to_owned(), columns: columns(&["value", "block", "definition"]), rows: dead },
             Section::Table { title: "Single-use values".to_owned(), columns: columns(&["value", "block", "definition", "used by"]), rows: single },
+            Section::Html { title: "Use counts page".to_owned(), html: page },
         ],
     })
 }

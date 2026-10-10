@@ -21,6 +21,8 @@
 ; nextln: v0 | block0 | v0: i32
 ; nextln: == Single-use values ==
 ; nextln: value | block | definition | used by
+; nextln: == Use counts page ==
+; nextln: (html page)
 ; check: view use_counts %missing
 ; nextln: error: no function `%missing`
 function %f(i32, i32) -> i32 {

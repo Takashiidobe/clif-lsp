@@ -55,8 +55,8 @@ render the sections generically, so a new view needs no new client code.
 Params:
 
 - `textDocument`: the document.
-- `view`: the view name. One of `cfg`, `analysis`, `stage`, `allocators`,
-  `regalloc`, `provenance`, `egraph`.
+- `view`: the view name. One of `cfg`, `analysis`, `def_use`, `use_counts`,
+  `live_ranges`, `stage`, `allocators`, `regalloc`, `provenance`, `egraph`.
 - `function`: the function name, for example `%main`. Defaults to the first
   function in the file.
 - `args`: an optional object of view-specific arguments.
@@ -165,6 +165,21 @@ Views:
   otherwise the page says there is no data. Instructions with side effects or
   several results, such as calls, are not part of the model. The log format is
   not an API, so the view is tied to the pinned Cranelift version.
+
+- `def_use`: where one value is defined and which instructions use it. `args`
+  takes `value` (required, such as `v2`) and `depth` (a positive integer,
+  default 1). With a depth above 1 the uses of each using instruction's results
+  are nested under it. Block parameters are not followed through branches.
+  Sections: a `table` (`value`, `block`, `instruction`), a `tree` of the uses
+  labelled `block: instruction`, and an `html` page with the same tree.
+- `use_counts`: the values of a function with no uses (`value`, `block`,
+  `definition`) and with exactly one use (plus `used by`), as two `table`
+  sections and an `html` page with the same tables. A use is one operand
+  occurrence, so `iadd v1, v1` is two uses.
+- `live_ranges`: where each value is live, from the file as written. An `html`
+  page with instructions down and values across (`def`, `|`, `use`) and a
+  `table` (`row`, `values live`, `values`) with one row per block header and
+  instruction. A value that dies at an instruction still counts as live on it.
 
 An unknown view, function or stage, or a missing required argument, fails with
 an invalid-params error.

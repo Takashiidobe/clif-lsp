@@ -20,6 +20,8 @@
 ; nextln: block1: v3 = iadd v2, v1
 ; nextln:   block1: jump block3(v3)
 ; nextln: block2: jump block3(v2)
+; nextln: == Uses page ==
+; nextln: (html page)
 ; check: view def_use %g {"value":"v0"}
 ; check: title: Uses of v0 in %g
 ; nextln: function: %g
