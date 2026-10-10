@@ -100,6 +100,10 @@ Refactor:
 - **Reuse `vN` for duplicate constant**: on an `iconst` that repeats an earlier
   identical `iconst` in the same block or in a block that dominates it. Uses of
   the duplicate are renamed and its line is deleted.
+- **Remove unused parameter `v` from `blockN`**: on a block parameter that
+  nothing uses, outside the entry block. Deletes it from the block header and
+  the matching argument from every branch into the block. The parentheses go
+  too when it was the only one.
 - **Move trailing instructions into new block**: splits the block before the
   instruction under the cursor with a `jump` to a new `blockN`. Not offered on
   the first instruction of a block.

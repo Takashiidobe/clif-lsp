@@ -1,0 +1,27 @@
+; mode: lsp
+; lsp: open
+; lsp: actions 3:16-3:18
+; lsp: actions 5:8-5:10
+; lsp: actions 7:8-7:10
+; lsp: actions 3:8-3:10
+; lsp: actions 1:7-1:9
+; check: actions 3:16-3:18
+; nextln: Remove unused parameter `v2` from `block1` [refactor.rewrite] 3:14-3:23 ""; 2:22-2:26 ""
+; check: actions 5:8-5:10
+; nextln: Remove unused parameter `v3` from `block2` [refactor.rewrite] 5:6-5:15 ""; 2:35-2:39 ""
+; check: actions 7:8-7:10
+; nextln: Remove unused parameter `v4` from `block3` [refactor.rewrite] 7:7-7:16 ""; 6:16-6:20 ""
+; check: actions 3:8-3:10
+; nextln: (none)
+; check: actions 1:7-1:9
+; nextln: (none)
+function %f(i32) -> i32 {
+block0(v0: i32):
+    brif v0, block1(v0, v0), block2(v0)
+block1(v1: i32, v2: i32):
+    return v1
+block2(v3: i32):
+    jump block3(v0, v0)
+block3(v4: i32, v5: i32):
+    return v5
+}

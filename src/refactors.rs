@@ -5,7 +5,7 @@ use tower_lsp_server::ls_types::{CodeActionKind, CodeActionOrCommand, Diagnostic
 use crate::actions::{action_edits, functions, line_start, overlaps};
 use crate::analysis::{self, FunctionAnalysis};
 use crate::document::Document;
-use crate::lexer::TokenKind;
+use crate::lexer::{Token, TokenKind};
 use crate::navigation;
 use crate::resolve::NameKind;
 use crate::syntax::{Block, Function, Inst, Span};
@@ -216,8 +216,97 @@ fn add_block_params(document: &Document, uri: &Uri, range: Range, published: &[D
     }
 }
 
+struct BlockCall {
+    name: Token,
+    arguments: Vec<Span>,
+    close: Token,
+}
+
+fn block_calls(text: &str, inst: &Inst, block: &str) -> Vec<BlockCall> {
+    let tokens: Vec<Token> =
+        inst.operands.iter().copied().filter(|t| !matches!(t.kind, TokenKind::Whitespace | TokenKind::Newline | TokenKind::Comment)).collect();
+    let mut calls = Vec::new();
+    for (at, name) in tokens.iter().enumerate() {
+        if name.kind != TokenKind::Block || name.text(text) != block || tokens.get(at + 1).map(|t| t.kind) != Some(TokenKind::LParen) {
+            continue;
+        }
+        let (mut depth, mut arguments, mut current) = (1usize, Vec::new(), None::<Span>);
+        for token in &tokens[at + 2..] {
+            match token.kind {
+                TokenKind::LParen | TokenKind::LBracket => depth += 1,
+                TokenKind::RParen | TokenKind::RBracket => depth -= 1,
+                TokenKind::Comma if depth == 1 => {
+                    arguments.extend(current.take());
+                    continue;
+                }
+                _ => {}
+            }
+            if depth == 0 {
+                arguments.extend(current.take());
+                calls.push(BlockCall { name: *name, arguments, close: *token });
+                break;
+            }
+            let span = Span::from(*token);
+            current = Some(current.map_or(span, |c| Span { start: c.start, end: span.end }));
+        }
+    }
+    calls
+}
+
+fn removal(items: &[Span], index: usize) -> Span {
+    if index + 1 < items.len() {
+        Span { start: items[index].start, end: items[index + 1].start }
+    } else {
+        Span { start: items[index - 1].end, end: items[index].end }
+    }
+}
+
+fn remove_unused_params(document: &Document, uri: &Uri, range: Range, out: &mut Vec<CodeActionOrCommand>) {
+    let text = document.text();
+    let resolution = navigation::resolution(document);
+    for (_, function) in functions(document) {
+        for block in function.blocks.iter().skip(1) {
+            let spans: Vec<Span> = block.params.iter().map(|p| p.span).collect();
+            for (index, param) in block.params.iter().enumerate() {
+                if !overlaps(range_of(document, param.span), range) {
+                    continue;
+                }
+                let Some(def) = resolution.defs.iter().position(|d| d.kind == NameKind::Value && d.span == Span::from(param.value)) else {
+                    continue;
+                };
+                if resolution.uses.iter().any(|u| u.def == Some(def)) {
+                    continue;
+                }
+                let header = if spans.len() == 1 {
+                    let Some(close) = text[param.span.end..].find(')') else { continue };
+                    Span { start: block.name.end, end: param.span.end + close + 1 }
+                } else {
+                    removal(&spans, index)
+                };
+                let mut edits = vec![TextEdit::new(range_of(document, header), String::new())];
+                for inst in function.blocks.iter().flat_map(|b| &b.insts) {
+                    for call in block_calls(text, inst, block.name.text(text)) {
+                        if index >= call.arguments.len() {
+                            continue;
+                        }
+                        let gone = if call.arguments.len() == 1 {
+                            Span { start: call.name.end, end: call.close.end }
+                        } else {
+                            removal(&call.arguments, index)
+                        };
+                        edits.push(TextEdit::new(range_of(document, gone), String::new()));
+                    }
+                }
+                let title = format!("Remove unused parameter `{}` from `{}`", param.value.text(text), block.name.text(text));
+                out.push(action_edits(uri, CodeActionKind::REFACTOR_REWRITE, title, &[], edits, false));
+            }
+        }
+    }
+}
+
 pub fn at(document: &Document, uri: &Uri, range: Range, published: &[Diagnostic], out: &mut Vec<CodeActionOrCommand>) {
     add_block_params(document, uri, range, published, out);
+    remove_unused_params(document, uri, range, out);
     collapse_brif(document, uri, range, out);
     reuse_constants(document, uri, range, out);
     wrap_trailing(document, uri, range, out);
