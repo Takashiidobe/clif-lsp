@@ -108,8 +108,8 @@ end, {})
 ```
 
 - `:ClifStage [stage] [function]` shows `parsed`, `optimized` (the default), or
-  `vcode`. `optimized` and `vcode` need a `target` line in the file. The
-  function defaults to the first one, and is written with its `%`, as in
+  `vcode`. `optimized` and `vcode` use the file's `target` line, or x86_64
+  without one. The function defaults to the first one, and is written with its `%`, as in
   `:ClifStage vcode %main`.
 - `:ClifGraph` shows each function's graph as Graphviz DOT. Save the buffer to a
   file and run `dot -Tpng graph.dot -o graph.png` to draw it. This needs

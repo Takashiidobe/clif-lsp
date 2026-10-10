@@ -1,6 +1,6 @@
 use cranelift_codegen::Context;
 use cranelift_codegen::control::ControlPlane;
-use cranelift_codegen::isa::TargetIsa;
+use cranelift_codegen::isa::{self, OwnedTargetIsa};
 use cranelift_reader::{IsaSpec, ParseOptions, parse_test};
 
 use crate::document::Document;
@@ -29,10 +29,13 @@ pub struct Rendered {
     pub text: String,
 }
 
-fn isa_of(spec: &IsaSpec) -> Result<&dyn TargetIsa, String> {
+fn isa_of(spec: &IsaSpec) -> Result<OwnedTargetIsa, String> {
     match spec {
-        IsaSpec::Some(isas) => Ok(&*isas[0]),
-        IsaSpec::None(_) => Err("this stage needs a `target` line, for example `target x86_64`".to_owned()),
+        IsaSpec::Some(isas) => Ok(isas[0].clone()),
+        IsaSpec::None(flags) => isa::lookup_by_name("x86_64")
+            .map_err(|e| e.to_string())?
+            .finish(flags.clone())
+            .map_err(|e| e.to_string()),
     }
 }
 
@@ -58,14 +61,14 @@ pub fn render(document: &Document, function: Option<&str>, stage: Stage) -> Resu
         Stage::Parsed => ir.to_string(),
         Stage::Optimized => {
             let mut context = Context::for_function(ir.clone());
-            context.optimize(isa_of(&test.isa_spec)?, &mut ControlPlane::default()).map_err(|e| format!("{e:?}"))?;
+            context.optimize(&*isa_of(&test.isa_spec)?, &mut ControlPlane::default()).map_err(|e| format!("{e:?}"))?;
             context.func.to_string()
         }
         Stage::Vcode => {
             let isa = isa_of(&test.isa_spec)?;
             let mut context = Context::for_function(ir.clone());
             context.set_disasm(true);
-            let compiled = context.compile(isa, &mut ControlPlane::default()).map_err(|e| format!("{:?}", e.inner))?;
+            let compiled = context.compile(&*isa, &mut ControlPlane::default()).map_err(|e| format!("{:?}", e.inner))?;
             compiled.vcode.clone().ok_or("the backend produced no vcode")?
         }
     };

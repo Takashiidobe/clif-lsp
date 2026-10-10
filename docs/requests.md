@@ -17,15 +17,13 @@ Params:
 Stages:
 
 - `parsed`: the function as `cranelift-reader` prints it.
-- `optimized`: the function after Cranelift's optimizer. Needs a `target` line.
-- `vcode`: the lowered virtual-register code for the target. Needs a `target`
-  line.
+- `optimized`: the function after Cranelift's optimizer.
+- `vcode`: the lowered virtual-register code for the target.
 
 Result: `{ function, stage, text }`.
 
-If the file has no `target` line, `optimized` and `vcode` fail with an error
-that says to add one, for example `target x86_64`. If `cranelift-reader` rejects
-the file, the error carries its message and line.
+`optimized` and `vcode` use the file's `target` line, or x86_64 when there is
+none. If `cranelift-reader` rejects the file, the error carries its message and line.
 
 ## clif/controlFlowGraph
 

@@ -1,9 +1,9 @@
 ; mode: lsp
 ; lsp: open
-; lsp: request clif/stage {"stage":"parsed"}
 ; lsp: request clif/stage {"stage":"optimized"}
-; check: "stage":"parsed","text":"function %f() fast {\nblock0:\n    return\n}\n"
-; nextln: clif/stage -> error -32602 this stage needs a `target` line, for example `target x86_64`
+; lsp: request clif/stage {"stage":"vcode"}
+; check: "stage":"optimized","text":"function %f() fast {\nblock0:\n    return\n}\n"
+; nextln: clif/stage -> {"function":"%f","stage":"vcode","text":"  pushq %rbp\n  movq %rsp, %rbp\nblock0:\n  movq %rbp, %rsp\n  popq %rbp\n  retq\n"}
 function %f() {
 block0:
     return
