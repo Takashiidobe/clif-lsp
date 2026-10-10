@@ -3,7 +3,7 @@ members = ["xtask"]
 
 [package]
 name = "clif-lsp"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.88"
 description = "Language server for Cranelift IR (CLIF) text files"
@@ -11,7 +11,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/Takashiidobe/clif-lsp"
 keywords = ["lsp", "cranelift", "clif", "language-server"]
 categories = ["development-tools"]
-include = ["/src", "/docs", "/README.md", "/LICENSE-*"]
+include = ["/src", "/docs/*.md", "/docs/images/diamond-cfg.png", "/README.md", "/LICENSE-*"]
 
 [dev-dependencies]
 filecheck = "0.5.0"
@@ -22,13 +22,22 @@ name = "fixtures"
 harness = false
 
 [dependencies]
-cranelift-codegen = { version = "=0.136.2", features = ["trace-log", "disas", "all-native-arch"] }
+cranelift-codegen = { version = "=0.136.2", features = [
+  "trace-log",
+  "disas",
+  "all-native-arch",
+] }
 log = "0.4.34"
 cranelift-reader = "=0.136.2"
 regalloc2 = "=0.15.2"
 ropey = "1"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
-similar = "2.7.0"
-tokio = { version = "1.53.2", features = ["macros", "rt-multi-thread", "io-std", "sync"] }
+similar = "3.2.0"
+tokio = { version = "1.53.2", features = [
+  "macros",
+  "rt-multi-thread",
+  "io-std",
+  "sync",
+] }
 tower-lsp-server = "0.23"
