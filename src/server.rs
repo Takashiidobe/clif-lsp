@@ -53,7 +53,7 @@ impl LanguageServer for Backend {
                     },
                 )),
                 code_action_provider: Some(CodeActionProviderCapability::Options(CodeActionOptions {
-                    code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+                    code_action_kinds: Some(vec![CodeActionKind::QUICKFIX, CodeActionKind::REFACTOR_REWRITE]),
                     ..CodeActionOptions::default()
                 })),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),

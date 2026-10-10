@@ -1,0 +1,30 @@
+; mode: lsp
+; lsp: open
+; lsp: actions 1:0-1:10
+; lsp: actions 2:0-2:10
+; lsp: actions 3:0-3:6
+; lsp: actions 7:0-7:6
+; lsp: actions 9:0-9:6
+; check: actions 1:0-1:10
+; nextln: Remove unused `ss0` [refactor.rewrite] 1:0-2:0 ""
+; check: actions 2:0-2:10
+; nextln: (none)
+; check: actions 3:0-3:6
+; nextln: Insert `trap user1` [quickfix] (preferred) 4:27-4:27 "\n    trap user1"
+; nextln: actions 7:0-7:6
+; nextln: Insert `return` [quickfix] (preferred) 8:20-8:20 "\n    return"
+; nextln: Insert `trap user1` [quickfix] 8:20-8:20 "\n    trap user1"
+; nextln: actions 9:0-9:6
+; nextln: (none)
+function %f(i32) -> i32 {
+    ss0 = explicit_slot 4
+    ss1 = explicit_slot 4
+block0(v0: i32):
+    v1 = stack_addr.i64 ss1
+}
+function %g(i32) {
+block0(v0: i32):
+    v1 = iadd v0, v0
+block1:
+    jump block0(v0)
+}

@@ -37,10 +37,10 @@ fn nearest<'a>(name: &str, candidates: impl Iterator<Item = &'a str>) -> Vec<&'a
     ranked.into_iter().take(SUGGESTIONS).map(|(_, name)| name).collect()
 }
 
-fn quickfix(uri: &Uri, title: String, linked: &[Diagnostic], edit: TextEdit, preferred: bool) -> CodeActionOrCommand {
+fn action(uri: &Uri, kind: CodeActionKind, title: String, linked: &[Diagnostic], edit: TextEdit, preferred: bool) -> CodeActionOrCommand {
     CodeActionOrCommand::CodeAction(CodeAction {
         title,
-        kind: Some(CodeActionKind::QUICKFIX),
+        kind: Some(kind),
         diagnostics: Some(linked.to_vec()),
         edit: Some(WorkspaceEdit { changes: Some(HashMap::from([(uri.clone(), vec![edit])])), ..WorkspaceEdit::default() }),
         is_preferred: Some(preferred),
@@ -103,7 +103,7 @@ fn undefined_name_fixes(document: &Document, uri: &Uri, range: Range, published:
         let defined = resolution.defs.iter().filter(|d| d.kind == used.kind && d.scope == Some(scope)).map(|d| d.name.as_str());
         for (rank, name) in nearest(&used.name, defined).into_iter().enumerate() {
             let title = format!("Change to `{name}`");
-            out.push(quickfix(uri, title, &linked, TextEdit::new(target, name.to_owned()), rank == 0));
+            out.push(action(uri, CodeActionKind::QUICKFIX, title, &linked, TextEdit::new(target, name.to_owned()), rank == 0));
         }
 
         let stub = match used.kind {
@@ -122,8 +122,57 @@ fn undefined_name_fixes(document: &Document, uri: &Uri, range: Range, published:
             _ => None,
         };
         if let Some((title, at, text)) = stub {
-            out.push(quickfix(uri, title, &linked, TextEdit::new(Range::new(at, at), text), false));
+            out.push(action(uri, CodeActionKind::QUICKFIX, title, &linked, TextEdit::new(Range::new(at, at), text), false));
         }
+    }
+}
+
+const MISSING_TERMINATOR: &str = "block does not end in a terminator instruction";
+
+fn missing_terminator_fixes(document: &Document, uri: &Uri, range: Range, published: &[Diagnostic], out: &mut Vec<CodeActionOrCommand>) {
+    for function in functions(document).map(|(_, f)| f) {
+        for block in &function.blocks {
+            let name = Range::new(document.position(block.name.start), document.position(block.name.end));
+            let linked: Vec<Diagnostic> = published.iter().filter(|d| d.range == name && d.message == MISSING_TERMINATOR).cloned().collect();
+            if linked.is_empty() || !overlaps(name, range) {
+                continue;
+            }
+            let text = document.text();
+            let indent = block.insts.last().map_or("    ", |inst| {
+                let line = line_start(document, inst.span.start);
+                &text[line..inst.span.start]
+            });
+            let at = document.position(block.insts.last().map_or(block.span.end, |inst| inst.span.end));
+            let returns_nothing = function.signature.returns.is_empty();
+            for (title, terminator) in [("Insert `return`", "return"), ("Insert `trap user1`", "trap user1")] {
+                if terminator == "return" && !returns_nothing {
+                    continue;
+                }
+                let edit = TextEdit::new(Range::new(at, at), format!("\n{indent}{terminator}"));
+                out.push(action(uri, CodeActionKind::QUICKFIX, title.to_owned(), &linked, edit, (terminator == "return") == returns_nothing));
+            }
+        }
+    }
+}
+
+fn unused_declaration_fixes(document: &Document, uri: &Uri, range: Range, out: &mut Vec<CodeActionOrCommand>) {
+    let resolution = navigation::resolution(document);
+    let text = document.text();
+    for (index, def) in resolution.defs.iter().enumerate() {
+        if def.kind != NameKind::Entity || resolution.uses.iter().any(|u| u.def == Some(index)) {
+            continue;
+        }
+        let Some(decl) = functions(document).flat_map(|(_, f)| f.decls.iter()).find(|d| Span::from(d.name) == def.span) else {
+            continue;
+        };
+        if !overlaps(Range::new(document.position(decl.span.start), document.position(decl.span.end)), range) {
+            continue;
+        }
+        let start = document.position(line_start(document, decl.span.start));
+        let end = document.position(text[decl.span.end..].find('\n').map_or(text.len(), |n| decl.span.end + n + 1));
+        let edit = TextEdit::new(Range::new(start, end), String::new());
+        let title = format!("Remove unused `{}`", def.name);
+        out.push(action(uri, CodeActionKind::REFACTOR_REWRITE, title, &[], edit, false));
     }
 }
 
@@ -139,9 +188,11 @@ pub fn at(document: &Document, uri: &Uri, range: Range) -> Vec<CodeActionOrComma
         let names = opcodes::OPCODES.iter().map(|info| info.name);
         for (rank, name) in nearest(span.text(document.text()), names).into_iter().enumerate() {
             let title = format!("Change to `{name}`");
-            actions.push(quickfix(uri, title, &linked, TextEdit::new(target, name.to_owned()), rank == 0));
+            actions.push(action(uri, CodeActionKind::QUICKFIX, title, &linked, TextEdit::new(target, name.to_owned()), rank == 0));
         }
     }
     undefined_name_fixes(document, uri, range, &published, &mut actions);
+    missing_terminator_fixes(document, uri, range, &published, &mut actions);
+    unused_declaration_fixes(document, uri, range, &mut actions);
     actions
 }
