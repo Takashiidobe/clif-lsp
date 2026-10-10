@@ -118,7 +118,7 @@ vim.api.nvim_create_user_command('ClifView', function(o)
         elseif s.kind == 'diff' then
           table.insert(out, s.text)
         elseif s.kind == 'html' then
-          table.insert(out, '(web page: use :ClifCfg, :ClifRegalloc or :ClifProvenance)')
+          table.insert(out, '(web page: use :ClifCfg, :ClifRegalloc, :ClifProvenance or :ClifEgraph)')
         elseif s.kind == 'table' then
           table.insert(out, table.concat(s.columns, '\t'))
           for _, row in ipairs(s.rows) do
@@ -146,7 +146,7 @@ end, { nargs = '+' })
   `:ClifGraphImage %main`. See [Drawing the graph](#drawing-the-graph).
 - `:ClifAnalysis` shows dominators and liveness as a Lua table.
 - `:ClifView view [function] [args]` shows a `clif/view` view: `cfg`,
-  `analysis`, `stage`, `allocators`, `regalloc` or `provenance`. The function
+  `analysis`, `stage`, `allocators`, `regalloc`, `provenance` or `egraph`. The function
   defaults to the first one. `args` is a JSON object and needs the function
   before it, as in `:ClifView stage %main {"stage":"vcode"}`.
   `:ClifView allocators` compares the two register allocators.
@@ -156,6 +156,9 @@ end, { nargs = '+' })
   Graphviz. See [Register allocation](#register-allocation) for the setup.
 - `:ClifRegalloc [function]` shows the register assignments, spills and reloads
   as tables and a web page. See [Register allocation](#register-allocation).
+- `:ClifEgraph [function]` shows the equivalent forms the optimizer considered
+  for each instruction and which it chose, as tables and a web page. See
+  [Register allocation](#register-allocation) for the setup.
 - `:ClifProvenance [function]` shows which input instruction each optimized
   instruction came from, and which were folded away or created, as tables and a
   web page. See [Register allocation](#register-allocation) for the setup.
@@ -267,6 +270,19 @@ because Cranelift records no provenance for instructions it creates. The page
 is plain HTML and SVG, so it needs no Graphviz, and the browser handles zoom
 and scrolling.
 
+`:ClifEgraph [function]` uses the same helper for the optimizer's e-graph. The
+tables go to the scratch buffer, and a web page opens with a card per input
+instruction listing its equivalent forms, their costs and the ISLE rule that
+produced them. The form the extractor chose is green. Add it next to the other
+`graphical_view` calls:
+
+```lua
+graphical_view('ClifEgraph', 'egraph')
+```
+
+It shows nothing useful with `set opt_level=none`, since the egraph pass does
+not run.
+
 ## Trying it on the fixtures
 
 The repository's test fixtures make good sample files. Build the server with
@@ -286,6 +302,7 @@ Then open a fixture and run the command in the table.
 | `cfg/graph.clif`                 | `:ClifGraph`. One block is unreachable and faded.   |
 | `stages/views.clif`              | `:ClifStage`, `:ClifStage vcode`.                   |
 | `view/regalloc.clif`             | `:ClifRegalloc %pressure` for a spill and reloads.  |
+| `view/egraph_view.clif`          | `:ClifEgraph %demo` for rewritten forms.            |
 | `calls/hierarchy.clif`           | `:lua vim.lsp.buf.incoming_calls()` on a name.      |
 | `actions/unknown_opcode.clif`    | `gra` on the bad opcode.                            |
 | `actions/undefined_names.clif`   | `gra` on an undefined value, block, or declaration. |

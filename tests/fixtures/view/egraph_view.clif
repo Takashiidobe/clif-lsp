@@ -1,0 +1,39 @@
+; mode: view
+; ^ view egraph %f
+; ^ view egraph %plain
+; check: view egraph %f
+; check: title: E-graph of %f
+; check: with alternatives | 2
+; check: == Equivalent forms ==
+; nextln: (html page)
+; check: == Alternatives ==
+; nextln: input | form | cost | chosen | rule
+; check: v3 = imul.i64 v0, v2 | imul v0, 8 | 11 | no
+; nextln: v3 = imul.i64 v0, v2 | ishl v0, 3 | 4 | yes |
+; check: view egraph %plain
+; check: with alternatives | 0
+set opt_level=speed
+target x86_64
+function %f(i64, i64) -> i64 {
+block0(v0: i64, v1: i64):
+    v2 = iconst.i64 8
+    v3 = imul v0, v2
+    v4 = iadd v3, v3
+    return v4
+}
+function %demo(i64, i64) -> i64 {
+block0(v0: i64, v1: i64):
+    v2 = iconst.i64 8
+    v3 = imul v0, v2
+    v4 = iconst.i64 4
+    v5 = udiv v1, v4
+    v6 = iadd v3, v5
+    v7 = iadd v6, v6
+    v8 = bnot v7
+    v9 = bnot v8
+    return v9
+}
+function %plain(i64) -> i64 {
+block0(v0: i64):
+    return v0
+}

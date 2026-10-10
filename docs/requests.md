@@ -56,7 +56,7 @@ Params:
 
 - `textDocument`: the document.
 - `view`: the view name. One of `cfg`, `analysis`, `stage`, `allocators`,
-  `regalloc`, `provenance`.
+  `regalloc`, `provenance`, `egraph`.
 - `function`: the function name, for example `%main`. Defaults to the first
   function in the file.
 - `args`: an optional object of view-specific arguments.
@@ -146,6 +146,25 @@ Views:
   instruction that is `no longer present` was deleted, merged into another
   (value numbering), or replaced by a new instruction (constant folding,
   strength reduction); the public API does not say which, or which rule fired.
+
+- `egraph`: the equivalent forms the optimizer's e-graph considered for each
+  input value, and which one it extracted. Three sections: a `table` of counts
+  (`input values`, `with alternatives`, `rewritten by the extractor`,
+  `rewrite rule invocations`, `rewrite rule results`), an `html` page with one
+  card per input instruction listing its forms (for `imul v0, 8`: `imul v0, 8`
+  at cost 11 and `ishl v0, 3` at cost 4, the second highlighted as chosen), and
+  a `table` of the same forms (`input`, `form`, `cost`, `chosen`, `rule`).
+
+  The data is parsed from Cranelift's trace log, captured through the `log`
+  crate with the `trace-log` feature of `cranelift-codegen`. See
+  [egraph-visibility.md](egraph-visibility.md). `cost` is the extractor's own
+  cost model, not a measurement. `rule` is the ISLE file and line of the rule
+  that produced the form; the rule text is not available. Forms are printed
+  from Cranelift's debug output, so they have no types and constants are shown
+  inline. Only `opt_level=speed` and `speed_and_size` run the egraph pass;
+  otherwise the page says there is no data. Instructions with side effects or
+  several results, such as calls, are not part of the model. The log format is
+  not an API, so the view is tied to the pinned Cranelift version.
 
 An unknown view, function or stage, or a missing required argument, fails with
 an invalid-params error.

@@ -4,6 +4,7 @@ use serde_json::Value;
 use crate::analysis::{self, FunctionAnalysis};
 use crate::cfg;
 use crate::document::Document;
+use crate::egraph;
 use crate::provenance::{self, Status};
 use crate::regalloc::{self, Event};
 use crate::stages::{self, Stage};
@@ -35,7 +36,7 @@ pub struct TreeNode {
     pub children: Vec<TreeNode>,
 }
 
-const VIEWS: [&str; 6] = ["cfg", "analysis", "stage", "allocators", "regalloc", "provenance"];
+const VIEWS: [&str; 7] = ["cfg", "analysis", "stage", "allocators", "regalloc", "provenance", "egraph"];
 
 pub fn render(document: &Document, view: &str, function: Option<&str>, args: &Value) -> Result<View, String> {
     match view {
@@ -45,6 +46,7 @@ pub fn render(document: &Document, view: &str, function: Option<&str>, args: &Va
         "allocators" => allocators_view(document, function),
         "regalloc" => regalloc_view(document, function),
         "provenance" => provenance_view(document, function),
+        "egraph" => egraph_view(document, function),
         _ => Err(format!("unknown view `{view}`, expected one of: {}", VIEWS.join(", "))),
     }
 }
@@ -227,6 +229,44 @@ fn provenance_view(document: &Document, function: Option<&str>) -> Result<View, 
             Section::Html { title: "Provenance map".to_owned(), html: report.html() },
             Section::Table { title: "Optimized instructions".to_owned(), columns: columns(&["block", "instruction", "status", "origin"]), rows: instructions },
             Section::Table { title: "No longer present".to_owned(), columns: columns(&["input instruction"]), rows: removed },
+        ],
+    })
+}
+
+fn egraph_view(document: &Document, function: Option<&str>) -> Result<View, String> {
+    let target = stages::target(document, function)?;
+    let report = egraph::analyze(&target)?;
+    let columns = |names: &[&str]| names.iter().map(|n| (*n).to_owned()).collect();
+    let stat = |name: &str| report.stats.iter().find(|(key, _)| key == name).map_or(0, |(_, count)| *count);
+    let summary = vec![
+        vec!["input values".to_owned(), report.classes.len().to_string()],
+        vec!["with alternatives".to_owned(), report.with_alternatives().count().to_string()],
+        vec!["rewritten by the extractor".to_owned(), report.rewritten().to_string()],
+        vec!["rewrite rule invocations".to_owned(), stat("rewrite_rule_invoked").to_string()],
+        vec!["rewrite rule results".to_owned(), stat("rewrite_rule_results").to_string()],
+    ];
+    let mut forms = Vec::new();
+    for class in report.with_alternatives() {
+        for member in &class.members {
+            let rules: Vec<String> = member.rules.iter().map(|r| format!("{}:{}", r.file, r.line)).collect();
+            forms.push(vec![
+                class.input.clone(),
+                member.text.clone(),
+                member.cost.map_or("unknown".to_owned(), |cost| cost.to_string()),
+                if member.chosen { "yes" } else { "no" }.to_owned(),
+                rules.join(", "),
+            ]);
+        }
+    }
+    Ok(View {
+        schema: SCHEMA,
+        view: "egraph".to_owned(),
+        title: format!("E-graph of {}", report.name),
+        function: report.name.clone(),
+        sections: vec![
+            Section::Table { title: "Summary".to_owned(), columns: columns(&["metric", "count"]), rows: summary },
+            Section::Html { title: "Equivalent forms".to_owned(), html: report.html() },
+            Section::Table { title: "Alternatives".to_owned(), columns: columns(&["input", "form", "cost", "chosen", "rule"]), rows: forms },
         ],
     })
 }
