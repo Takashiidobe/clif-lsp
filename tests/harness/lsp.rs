@@ -165,6 +165,26 @@ async fn step(client: &mut Client, source: &str, command: &str) -> Result<String
             let shown = if labels.is_empty() { "(none)".to_owned() } else { labels.join(" ") };
             Ok(format!("complete {rest} -> {shown}"))
         }
+        "actions" => {
+            let (range, _) = parse_edit(&format!("{rest} "))?;
+            let params = json!({"textDocument": client.text_document(), "range": range, "context": {"diagnostics": []}});
+            let response = client.request("textDocument/codeAction", params).await?;
+            let actions: Value = serde_json::from_str(&response).map_err(|_| response.clone())?;
+            let mut out = format!("actions {rest}");
+            for action in actions.as_array().into_iter().flatten() {
+                let edits = &action["edit"]["changes"][URI];
+                let shown: Vec<String> = edits.as_array().into_iter().flatten().map(|e| {
+                    let r = &e["range"];
+                    format!("{}:{}-{}:{} {}", r["start"]["line"], r["start"]["character"], r["end"]["line"], r["end"]["character"], e["newText"])
+                }).collect();
+                let preferred = if action["isPreferred"] == true { " (preferred)" } else { "" };
+                out.push_str(&format!("\n  {} [{}]{preferred} {}", action["title"].as_str().unwrap_or(""), action["kind"].as_str().unwrap_or(""), shown.join("; ")));
+            }
+            if actions.as_array().is_none_or(|a| a.is_empty()) {
+                out.push_str("\n  (none)");
+            }
+            Ok(out)
+        }
         "await" => Ok(format!("{rest} <- {}", client.await_notification(rest).await?)),
         _ => Err(format!("unknown lsp command `{command}`")),
     }

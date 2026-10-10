@@ -23,4 +23,6 @@ Diagnostics policy (`diagnostics::all`): parser errors are errors. Name-resoluti
 
 `complete L:C` requests completion at that position and prints `complete L:C -> <labels>` in server order, or `(none)`.
 
+`actions L:C-L:C` requests code actions for that range and prints one line per action (title, kind, `(preferred)`, then its edits as `L:C-L:C "text"`), or `(none)`.
+
 `tokens` requests full semantic tokens and prints `tokens` followed by one `L:C <type> <text>` line per token, decoded with the legend from `initialize`.

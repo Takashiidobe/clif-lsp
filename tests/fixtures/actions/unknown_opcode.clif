@@ -1,0 +1,26 @@
+; mode: lsp
+; lsp: open
+; lsp: actions 2:9-2:9
+; lsp: actions 3:4-3:4
+; lsp: actions 0:0-0:0
+; lsp: actions 7:0-8:20
+; check: actions 2:9-2:9
+; nextln: Change to `iadd` [quickfix] (preferred) 2:9-2:14 "iadd"
+; check: actions 3:4-3:4
+; nextln: (none)
+function %f(i32) -> i32 {
+block0(v0: i32):
+    v1 = iaddd v0, v0
+    return v1
+}
+function %g(i32) -> i32 {
+block0(v0: i32):
+    v1 = zzzzzzzz v0
+    v2 = ireg v0
+    return v0
+}
+; check: actions 0:0-0:0
+; nextln: (none)
+; check: actions 7:0-8:20
+; nextln: Change to `ineg` [quickfix] (preferred) 8:9-8:13 "ineg"
+; not: zzzzzzzz

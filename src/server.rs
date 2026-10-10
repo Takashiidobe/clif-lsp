@@ -4,13 +4,14 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower_lsp_server::jsonrpc::{Error, Result};
 use tower_lsp_server::ls_types::{
-    CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams,
+    CodeActionOptions, CodeActionParams, CodeActionProviderCapability, CodeActionResponse, CodeActionKind, CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams,
     InitializeResult, Diagnostic, DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, Location, OneOf,
     PrepareRenameResponse, ReferenceParams, RenameOptions, RenameParams, SemanticTokens, SemanticTokensOptions, SemanticTokensParams, SemanticTokensFullOptions, SemanticTokensResult,
     SemanticTokensServerCapabilities, TextDocumentPositionParams, TextEdit, WorkspaceEdit, ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
 };
 use tower_lsp_server::{Client, LanguageServer};
 
+use crate::actions;
 use crate::completion;
 use crate::diagnostics;
 use crate::document::Document;
@@ -51,6 +52,10 @@ impl LanguageServer for Backend {
                         ..SemanticTokensOptions::default()
                     },
                 )),
+                code_action_provider: Some(CodeActionProviderCapability::Options(CodeActionOptions {
+                    code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+                    ..CodeActionOptions::default()
+                })),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
@@ -107,6 +112,12 @@ impl LanguageServer for Backend {
         let documents = self.documents.read().await;
         let data = documents.get(&params.text_document.uri).map(semantic::tokens);
         Ok(data.map(|data| SemanticTokensResult::Tokens(SemanticTokens { result_id: None, data })))
+    }
+
+    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+        let documents = self.documents.read().await;
+        let found = documents.get(&params.text_document.uri).map(|d| actions::at(d, &params.text_document.uri, params.range));
+        Ok(found)
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
