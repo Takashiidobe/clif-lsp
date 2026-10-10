@@ -1,6 +1,6 @@
 use cranelift_codegen::{CodegenError, Context};
 use cranelift_codegen::ir::Function;
-use cranelift_codegen::settings::{self, Configurable};
+use cranelift_codegen::settings::{self, Configurable, OptLevel};
 use cranelift_codegen::control::ControlPlane;
 use cranelift_codegen::isa::{self, OwnedTargetIsa, TargetIsa};
 use cranelift_reader::{IsaSpec, ParseOptions, parse_test};
@@ -84,6 +84,45 @@ pub fn compile(function: &Function, isa: &dyn TargetIsa) -> Result<Compiled, Str
     let compiled = context.compile(isa, &mut ControlPlane::default()).map_err(|e| describe(&e.inner))?;
     let vcode = compiled.vcode.clone().ok_or("the backend produced no vcode")?;
     Ok(Compiled { vcode, code_bytes: compiled.code_buffer().len() })
+}
+
+pub struct Snapshot {
+    pub name: &'static str,
+    pub text: String,
+    pub skipped: Option<&'static str>,
+    pub ir: bool,
+}
+
+pub fn snapshots(target: &Target) -> Result<Vec<Snapshot>, String> {
+    let isa = &*target.isa;
+    let mut plane = ControlPlane::default();
+    let mut context = Context::for_function(target.function.clone());
+    let mut out = vec![Snapshot { name: "parsed", text: context.func.to_string(), skipped: None, ir: true }];
+
+    let canonicalize = isa.flags().enable_nan_canonicalization();
+    if canonicalize {
+        context.canonicalize_nans(isa).map_err(|e| describe(&e))?;
+    }
+    out.push(Snapshot { name: "canonicalize_nans", text: context.func.to_string(), skipped: (!canonicalize).then_some("enable_nan_canonicalization is off"), ir: true });
+
+    context.verify_if(isa).map_err(|e| describe(&e))?;
+    context.compute_cfg();
+    context.compute_domtree();
+    context.eliminate_unreachable_code(isa).map_err(|e| describe(&e))?;
+    out.push(Snapshot { name: "unreachable_code", text: context.func.to_string(), skipped: None, ir: true });
+
+    context.remove_constant_phis(isa).map_err(|e| describe(&e))?;
+    context.func.dfg.resolve_all_aliases();
+    out.push(Snapshot { name: "constant_phis", text: context.func.to_string(), skipped: None, ir: true });
+
+    let optimize = isa.flags().opt_level() != OptLevel::None;
+    if optimize {
+        context.egraph_pass(isa, &mut plane).map_err(|e| describe(&e))?;
+    }
+    out.push(Snapshot { name: "egraph", text: context.func.to_string(), skipped: (!optimize).then_some("opt_level=none"), ir: true });
+
+    out.push(Snapshot { name: "vcode", text: compile(&target.function, isa)?.vcode, skipped: None, ir: false });
+    Ok(out)
 }
 
 pub fn with_algorithm(isa: &dyn TargetIsa, algorithm: &str) -> Result<OwnedTargetIsa, String> {

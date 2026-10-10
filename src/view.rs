@@ -7,6 +7,7 @@ use crate::def_use;
 use crate::document::Document;
 use crate::egraph;
 use crate::live_range;
+use crate::passes;
 use crate::provenance::{self, Status};
 use crate::regalloc::{self, Event};
 use crate::stages::{self, Stage};
@@ -39,7 +40,7 @@ pub struct TreeNode {
     pub children: Vec<TreeNode>,
 }
 
-const VIEWS: [&str; 10] = ["cfg", "analysis", "def_use", "use_counts", "live_ranges", "stage", "allocators", "regalloc", "provenance", "egraph"];
+const VIEWS: [&str; 12] = ["cfg", "analysis", "def_use", "use_counts", "live_ranges", "passes", "diff", "stage", "allocators", "regalloc", "provenance", "egraph"];
 
 pub fn render(document: &Document, view: &str, function: Option<&str>, args: &Value) -> Result<View, String> {
     match view {
@@ -48,6 +49,8 @@ pub fn render(document: &Document, view: &str, function: Option<&str>, args: &Va
         "def_use" => def_use_view(document, function, args),
         "use_counts" => use_counts_view(document, function),
         "live_ranges" => live_ranges_view(document, function),
+        "passes" => passes_view(document, function),
+        "diff" => diff_view(document, function, args),
         "stage" => stage_view(document, function, args),
         "allocators" => allocators_view(document, function),
         "regalloc" => regalloc_view(document, function),
@@ -224,13 +227,68 @@ fn use_counts_view(document: &Document, function: Option<&str>) -> Result<View, 
     })
 }
 
+fn passes_view(document: &Document, function: Option<&str>) -> Result<View, String> {
+    let target = stages::target(document, function)?;
+    let snapshots = stages::snapshots(&target)?;
+    let steps = passes::steps(&snapshots);
+    let rows = steps
+        .iter()
+        .map(|step| {
+            let ran = if step.snapshot.skipped.is_some() { "no" } else { "yes" };
+            vec![step.snapshot.name.to_owned(), ran.to_owned(), step.added.to_string(), step.removed.to_string(), step.note()]
+        })
+        .collect();
+    let columns = ["pass", "ran", "lines added", "lines removed", "note"].map(str::to_owned).to_vec();
+    Ok(View {
+        schema: SCHEMA,
+        view: "passes".to_owned(),
+        title: format!("Optimization passes of {}", target.name),
+        sections: vec![
+            Section::Table { title: "Passes".to_owned(), columns, rows },
+            Section::Html { title: "Pass stepper".to_owned(), html: passes::stepper(&target.name, &steps) },
+        ],
+        function: target.name,
+    })
+}
+
+fn snapshot_named<'a>(snapshots: &'a [stages::Snapshot], name: &str) -> Result<&'a stages::Snapshot, String> {
+    let wanted = if name == "optimized" { "egraph" } else { name };
+    snapshots.iter().find(|s| s.name == wanted).ok_or_else(|| {
+        let names: Vec<&str> = snapshots.iter().map(|s| s.name).chain(["optimized"]).collect();
+        format!("unknown stage `{name}`, expected one of: {}", names.join(", "))
+    })
+}
+
+fn diff_view(document: &Document, function: Option<&str>, args: &Value) -> Result<View, String> {
+    let text = |key: &str, default: &'static str| args.get(key).and_then(Value::as_str).unwrap_or(default).to_owned();
+    let (from, to) = (text("from", "parsed"), text("to", "optimized"));
+    let target = stages::target(document, function)?;
+    let snapshots = stages::snapshots(&target)?;
+    let (before, after) = (snapshot_named(&snapshots, &from)?, snapshot_named(&snapshots, &to)?);
+    let diff = similar::TextDiff::from_lines(&before.text, &after.text).unified_diff().header(&from, &to).to_string();
+    Ok(View {
+        schema: SCHEMA,
+        view: "diff".to_owned(),
+        title: format!("{from} to {to} of {}", target.name),
+        sections: vec![Section::Diff { title: "CLIF".to_owned(), from, to, text: diff }],
+        function: target.name,
+    })
+}
+
 fn stage_view(document: &Document, function: Option<&str>, args: &Value) -> Result<View, String> {
     let name = args
         .get("stage")
         .and_then(Value::as_str)
         .ok_or("the stage view needs a `stage` argument, one of: parsed, optimized, vcode")?;
-    let stage = Stage::parse(name).ok_or_else(|| format!("unknown stage `{name}`"))?;
-    let rendered = stages::render(document, function, stage)?;
+    let rendered = match Stage::parse(name) {
+        Some(stage) => stages::render(document, function, stage)?,
+        None => {
+            let target = stages::target(document, function)?;
+            let snapshots = stages::snapshots(&target)?;
+            let snapshot = snapshots.iter().find(|s| s.name == name).ok_or_else(|| format!("unknown stage `{name}`"))?;
+            stages::Rendered { function: target.name.clone(), text: snapshot.text.clone() }
+        }
+    };
     Ok(View {
         schema: SCHEMA,
         view: "stage".to_owned(),

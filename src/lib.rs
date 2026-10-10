@@ -18,6 +18,7 @@ pub mod live_range;
 pub mod modes;
 pub mod navigation;
 pub mod parser;
+pub mod passes;
 pub mod provenance;
 pub mod ranges;
 pub mod regalloc;

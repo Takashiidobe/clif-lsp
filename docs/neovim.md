@@ -125,7 +125,7 @@ vim.api.nvim_create_user_command('ClifView', function(o)
         elseif s.kind == 'diff' then
           table.insert(out, s.text)
         elseif s.kind == 'html' then
-          table.insert(out, '(web page: use :ClifCfg, :ClifRegalloc, :ClifProvenance, :ClifEgraph, :ClifLiveRanges, :ClifUseCounts or :ClifDefUse)')
+          table.insert(out, '(web page: use :ClifCfg, :ClifRegalloc, :ClifProvenance, :ClifEgraph, :ClifLiveRanges, :ClifPasses, :ClifUseCounts or :ClifDefUse)')
         elseif s.kind == 'table' then
           table.insert(out, table.concat(s.columns, '\t'))
           for _, row in ipairs(s.rows) do
@@ -155,7 +155,7 @@ end, { nargs = '+' })
   `:ClifGraphImage %main`. See [Drawing the graph](#drawing-the-graph).
 - `:ClifAnalysis` shows dominators and liveness as a Lua table.
 - `:ClifView view [function] [args]` shows a `clif/view` view: `cfg`,
-  `analysis`, `def_use`, `use_counts`, `live_ranges`, `stage`, `allocators`,
+  `analysis`, `def_use`, `use_counts`, `live_ranges`, `passes`, `diff`, `stage`, `allocators`,
   `regalloc`, `provenance` or `egraph`. The function
   defaults to the first one. `args` is a JSON object and needs the function
   before it, as in `:ClifView stage %main {"stage":"vcode"}`.
@@ -249,6 +249,8 @@ local function graphical_view(command, view, request_of)
             table.insert(out, table.concat(row, '\t'))
           end
           table.insert(out, '')
+        elseif s.kind == 'diff' then
+          table.insert(out, s.text)
         elseif s.kind == 'html' then
           local page = vim.fn.tempname() .. '.html'
           vim.fn.writefile(vim.split(s.html, '\n'), page)
@@ -312,6 +314,38 @@ written, with no `target` line needed. Add it next to the other
 graphical_view('ClifLiveRanges', 'live_ranges')
 ```
 
+## Optimization passes
+
+`:ClifPasses [function]` steps through what the optimizer does to a function.
+The scratch buffer lists the passes with the lines each one added and removed,
+and a web page opens at the input. Each step shows the function after that
+pass, with added lines green, changed lines yellow and removed lines red and
+struck through. Click the arrows, the names across the top, or press the left and
+right arrow keys to move between steps. Each step has its own URL fragment
+(`#step-3`), so the page can be bookmarked at a step. It is one file with no
+Graphviz and no external requests.
+
+The steps are `parsed`, `canonicalize_nans`, `unreachable_code`,
+`constant_phis`, `egraph` and `vcode`. They are the public steps of Cranelift's
+`Context::optimize`, replayed one by one, so everything the optimizer rewrites
+happens in `egraph`. Use `:ClifEgraph` to see what it considered inside that
+step. `canonicalize_nans` runs only with the `enable_nan_canonicalization`
+flag, and `egraph` only when `opt_level` is not `none`; skipped steps stay in
+the list and say why. `vcode` is machine IR, shown as is rather than diffed.
+`optimized` is the same as `egraph` and works wherever a step name is wanted.
+
+`:ClifDiff [from] [to] [function]` prints a unified diff between any two steps
+in the scratch buffer. It defaults to `parsed` and `optimized`. `:ClifStage
+egraph` shows one step's full text. Add them next to the other `graphical_view`
+calls:
+
+```lua
+graphical_view('ClifPasses', 'passes')
+graphical_view('ClifDiff', 'diff', function(fargs)
+  return fargs[3], { from = fargs[1], to = fargs[2] }
+end)
+```
+
 ## Uses
 
 `:ClifUseCounts [function]` lists the values with no uses and the values with
@@ -356,6 +390,7 @@ Then open a fixture and run the command in the table.
 | `view/regalloc.clif`             | `:ClifRegalloc %pressure` for a spill and reloads.  |
 | `view/egraph_view.clif`          | `:ClifEgraph %demo` for rewritten forms.            |
 | `view/live_ranges.clif`          | `:ClifLiveRanges` for a diamond of live ranges.     |
+| `view/passes.clif`               | `:ClifPasses`, `:ClifDiff parsed egraph %f`.        |
 | `view/def_use.clif`              | `:ClifDefUse v2 %f 2` for a two-level use tree.     |
 | `view/use_counts.clif`           | `:ClifUseCounts` for dead and single-use values.    |
 | `calls/hierarchy.clif`           | `:lua vim.lsp.buf.incoming_calls()` on a name.      |

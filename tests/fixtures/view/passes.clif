@@ -1,0 +1,70 @@
+; mode: view, lsp
+; ^ view passes
+; ^ view passes %g
+; ^ view diff {"from":"parsed","to":"optimized"}
+; ^ view diff {"from":"unreachable_code","to":"egraph"}
+; ^ view diff {"from":"parsed","to":"nope"}
+; ^ view stage {"stage":"egraph"}
+; ^ view stage {"stage":"optimized"}
+; ^ view passes %missing
+; lsp: open
+; lsp: request clif/view {"view":"passes"}
+; check: view passes
+; check: title: Optimization passes of %f
+; check: == Passes ==
+; nextln: pass | ran | lines added | lines removed | note
+; nextln: parsed | yes | 0 | 0 | the input
+; nextln: canonicalize_nans | no | 0 | 0 | skipped: enable_nan_canonicalization is off
+; nextln: unreachable_code | yes | 0 | 0 | no change
+; nextln: constant_phis | yes | 0 | 0 | no change
+; nextln: egraph | yes | 1 | 3 | 1 added, 3 removed
+; nextln: vcode | yes | 0 | 0 | machine code for the target, not diffed against CLIF
+; nextln: == Pass stepper ==
+; nextln: (html page)
+; check: view passes
+; check: title: Optimization passes of %g
+; check: unreachable_code | yes | 0 | 4 | 0 added, 4 removed
+; check: view diff {"from":"parsed","to":"optimized"}
+; check: == CLIF (parsed vs optimized) ==
+; nextln: --- parsed
+; nextln: +++ optimized
+; check: -    v2 = iadd v0, v1  ; v1 = 0
+; nextln: -    return v2
+; nextln: +    return v0
+; check: view diff {"from":"unreachable_code","to":"egraph"}
+; check: == CLIF (unreachable_code vs egraph) ==
+; check: +    return v0
+; check: view diff {"from":"parsed","to":"nope"}
+; nextln: error: unknown stage `nope`, expected one of: parsed, canonicalize_nans, unreachable_code, constant_phis, egraph, vcode, optimized
+; check: view stage {"stage":"egraph"}
+; check: title: egraph %f
+; nextln: function: %f
+; nextln: == egraph ==
+; nextln: function %f(i32) -> i32 fast {
+; nextln: block0(v0: i32):
+; nextln: return v0
+; check: view stage {"stage":"optimized"}
+; check: title: optimized %f
+; nextln: function: %f
+; nextln: == optimized ==
+; nextln: function %f(i32) -> i32 fast {
+; nextln: block0(v0: i32):
+; nextln: return v0
+; check: view passes %missing
+; nextln: error: no function `%missing`
+; check: clif/view -> {"function":"%f"
+set opt_level=speed
+target x86_64
+function %f(i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst.i32 0
+    v2 = iadd v0, v1
+    return v2
+}
+function %g(i32) -> i32 {
+block0(v0: i32):
+    return v0
+block1:
+    v1 = iconst.i32 1
+    return v1
+}

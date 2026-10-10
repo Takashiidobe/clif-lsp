@@ -56,7 +56,7 @@ Params:
 
 - `textDocument`: the document.
 - `view`: the view name. One of `cfg`, `analysis`, `def_use`, `use_counts`,
-  `live_ranges`, `stage`, `allocators`, `regalloc`, `provenance`, `egraph`.
+  `live_ranges`, `passes`, `diff`, `stage`, `allocators`, `regalloc`, `provenance`, `egraph`.
 - `function`: the function name, for example `%main`. Defaults to the first
   function in the file.
 - `args`: an optional object of view-specific arguments.
@@ -180,6 +180,19 @@ Views:
   page with instructions down and values across (`def`, `|`, `use`) and a
   `table` (`row`, `values live`, `values`) with one row per block header and
   instruction. A value that dies at an instruction still counts as live on it.
+
+- `passes`: the optimizer's steps for a function, replayed from Cranelift's
+  `Context::optimize` (`parsed`, `canonicalize_nans`, `unreachable_code`,
+  `constant_phis`, `egraph`, then `vcode`). A `table` (`pass`, `ran`,
+  `lines added`, `lines removed`, `note`) and an `html` stepper: one page with a
+  section per step, linked by `#step-N` fragments, previous and next arrows, a
+  strip of step names and left and right arrow keys. Each step is the function
+  after the pass with added, changed and removed lines marked against the
+  previous step. `canonicalize_nans` and `egraph` are kept and marked skipped
+  when their flag or `opt_level` turns them off. `vcode` is not diffed.
+- `diff`: a `diff` section between two steps. `args` takes `from` (default
+  `parsed`) and `to` (default `optimized`), each a step name; `optimized` is the
+  same as `egraph`. The `stage` view also accepts the step names.
 
 An unknown view, function or stage, or a missing required argument, fails with
 an invalid-params error.

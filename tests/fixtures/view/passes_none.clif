@@ -1,0 +1,14 @@
+; mode: view
+; ^ view passes
+; check: view passes
+; check: == Passes ==
+; nextln: pass | ran | lines added | lines removed | note
+; check: egraph | no | 0 | 0 | skipped: opt_level=none
+set opt_level=none
+target x86_64
+function %f(i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst.i32 0
+    v2 = iadd v0, v1
+    return v2
+}
