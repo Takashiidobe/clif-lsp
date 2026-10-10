@@ -9,6 +9,8 @@ Expectations are `; CHECK:` lines in each file, run by `cargo test --test fixtur
 
 `view` mode prints each view as lines: `title:`, `function:`, then per section a `== title ==` header and, for a table, a `a | b | c` line per row. Dot graphs print as `(dot graph)`; check the graphs by eye. Keep view checks to a few textual facts, not a full dump.
 
+`egraph-trace` mode optimizes the first function and prints `N entries`, then one `target: message` line per egraph and ISLE log record Cranelift emitted (see `docs/egraph-visibility.md`). `set opt_level=none` gives `0 entries`. Check a few lines; value numbers shift with the function.
+
 `tokens` mode positions are `line:byte-column`, with line 0 being the first line after the leading block of directive comments. Directive comments print as `Comment "<directive>"` so checks cannot match themselves.
 
 The harness also runs invariants on every fixture, whatever its `mode:`: the lexer tiles the input exactly, the parser does not panic, and every span is in bounds on char boundaries. These are re-checked on every char-boundary prefix of the file.

@@ -22,7 +22,8 @@ name = "fixtures"
 harness = false
 
 [dependencies]
-cranelift-codegen = "=0.136.2"
+cranelift-codegen = { version = "=0.136.2", features = ["trace-log"] }
+log = "0.4.34"
 cranelift-reader = "=0.136.2"
 regalloc2 = "=0.15.2"
 ropey = "1"

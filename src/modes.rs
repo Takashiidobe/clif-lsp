@@ -29,6 +29,7 @@ pub fn render(mode: &str, input: &Input) -> Result<String, String> {
         "names" => Ok(render_names(&strip_directives(input.source))),
         "opcodes" => Ok(render_opcodes(&strip_directives(input.source))),
         "view" => render_views(input),
+        "egraph-trace" => render_egraph_trace(input),
         "source" => Ok(strip_directives(input.source)),
         _ => Err(format!("unknown mode `{mode}`")),
     }
@@ -295,6 +296,17 @@ fn render_views(input: &Input) -> Result<String, String> {
             Err(message) => out.push_str(&format!("error: {message}")),
         }
         out.push('\n');
+    }
+    Ok(out)
+}
+
+fn render_egraph_trace(input: &Input) -> Result<String, String> {
+    let document = Document::new(&plain_text(input.source));
+    let target = crate::stages::target(&document, None)?;
+    let entries = crate::egraph_trace::capture(&target)?;
+    let mut out = format!("{} entries\n", entries.len());
+    for entry in &entries {
+        out.push_str(&format!("{}: {}\n", entry.target.trim_start_matches("cranelift_codegen::"), entry.message));
     }
     Ok(out)
 }

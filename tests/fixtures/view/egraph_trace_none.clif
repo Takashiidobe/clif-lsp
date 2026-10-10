@@ -1,0 +1,10 @@
+; mode: egraph-trace
+; check: 0 entries
+set opt_level=none
+target x86_64
+function %f(i64) -> i64 {
+block0(v0: i64):
+    v1 = iconst.i64 8
+    v2 = imul v0, v1
+    return v2
+}
