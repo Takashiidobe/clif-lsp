@@ -3,7 +3,7 @@ members = ["xtask"]
 
 [package]
 name = "clif-lsp"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 rust-version = "1.88"
 description = "Language server for Cranelift IR (CLIF) text files"
@@ -11,7 +11,13 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/Takashiidobe/clif-lsp"
 keywords = ["lsp", "cranelift", "clif", "language-server"]
 categories = ["development-tools"]
-include = ["/src", "/docs/*.md", "/docs/images/diamond-cfg.png", "/README.md", "/LICENSE-*"]
+include = [
+  "/src",
+  "/docs/*.md",
+  "/docs/images/diamond-cfg.png",
+  "/README.md",
+  "/LICENSE-*",
+]
 
 [dev-dependencies]
 filecheck = "0.5.0"
