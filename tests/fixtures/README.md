@@ -11,6 +11,8 @@ Expectations are `; CHECK:` lines in each file, run by `cargo test --test fixtur
 
 `egraph-trace` mode optimizes the first function and prints `N entries`, then one `target: message` line per egraph and ISLE log record Cranelift emitted (see `docs/egraph-visibility.md`). `set opt_level=none` gives `0 entries`. Check a few lines; value numbers shift with the function.
 
+`egraph` mode prints the parsed model for the first function: a `class <input instruction>` line per input value, then one line per equivalent form with `cost N`, `original`, `chosen` and the ISLE rule `file:line` that produced it.
+
 `tokens` mode positions are `line:byte-column`, with line 0 being the first line after the leading block of directive comments. Directive comments print as `Comment "<directive>"` so checks cannot match themselves.
 
 The harness also runs invariants on every fixture, whatever its `mode:`: the lexer tiles the input exactly, the parser does not panic, and every span is in bounds on char boundaries. These are re-checked on every char-boundary prefix of the file.

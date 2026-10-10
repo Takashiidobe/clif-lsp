@@ -1,0 +1,15 @@
+; mode: egraph
+; check: class v3 = imul.i64 v0, v2
+; nextln: imul v0, 8 | cost 11 | original
+; nextln: ishl v0, 3 | cost 4 | chosen |
+; check: class v4 = iadd.i64 v3, v1
+; nextln: iadd v3, v1 | cost 7 | original | chosen
+set opt_level=speed
+target x86_64
+function %f(i64, i64) -> i64 {
+block0(v0: i64, v1: i64):
+    v2 = iconst.i64 8
+    v3 = imul v0, v2
+    v4 = iadd v3, v1
+    return v4
+}
