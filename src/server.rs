@@ -14,6 +14,7 @@ use tower_lsp_server::{Client, ClientSocket, LanguageServer, LspService};
 use tower_lsp_server::ls_types::TextDocumentIdentifier;
 
 use crate::actions;
+use crate::analysis;
 use crate::calls;
 use crate::cfg;
 use crate::completion;
@@ -39,7 +40,13 @@ pub struct GraphResponse {
 }
 
 pub fn service() -> (LspService<Backend>, ClientSocket) {
-    LspService::build(Backend::new).custom_method("clif/controlFlowGraph", Backend::control_flow_graph).finish()
+    LspService::build(Backend::new).custom_method("clif/controlFlowGraph", Backend::control_flow_graph)
+        .custom_method("clif/analysis", Backend::analysis).finish()
+}
+
+#[derive(Serialize)]
+pub struct AnalysisResponse {
+    pub functions: Vec<analysis::FunctionAnalysis>,
 }
 
 pub struct Backend {
@@ -56,6 +63,12 @@ impl Backend {
         let documents = self.documents.read().await;
         let document = documents.get(&params.text_document.uri).ok_or_else(|| Error::invalid_params("document is not open"))?;
         Ok(GraphResponse { functions: cfg::graphs(document) })
+    }
+
+    async fn analysis(&self, params: GraphParams) -> Result<AnalysisResponse> {
+        let documents = self.documents.read().await;
+        let document = documents.get(&params.text_document.uri).ok_or_else(|| Error::invalid_params("document is not open"))?;
+        Ok(AnalysisResponse { functions: analysis::analyze(document) })
     }
 
     async fn publish(&self, uri: Uri, version: Option<i32>, diagnostics: Vec<Diagnostic>) {

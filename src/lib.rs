@@ -1,3 +1,4 @@
+pub mod analysis;
 pub mod calls;
 pub mod cfg;
 pub mod actions;

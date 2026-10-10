@@ -15,15 +15,15 @@
 ; check: textDocument/hover -> {"contents":{"kind":"markdown","value":"```clif\na = iadd x, y\n```\n\nWrapping integer addition
 ; check: - a: A scalar or vector integer type"},"range":{"end":{"character":13,"line":3},"start":{"character":9,"line":3}}}
 ; nextln: textDocument/hover -> {"contents":{"kind":"markdown","value":"`i32`\n\nAn integer type with 32 bits."},"range":{"end":{"character":17,"line":3},"start":{"character":14,"line":3}}}
-; nextln: textDocument/hover -> {"contents":{"kind":"markdown","value":"```clif\nv0: i32\n```\n\nparameter of `block0`, type `i32`"},"range":{"end":{"character":20,"line":3},"start":{"character":18,"line":3}}}
-; nextln: textDocument/hover -> {"contents":{"kind":"markdown","value":"defined by\n\n```clif\nv2 = iadd.i32 v0, v1\n```\n\ntype `i32`"},"range":{"end":{"character":6,"line":3},"start":{"character":4,"line":3}}}
+; nextln: textDocument/hover -> {"contents":{"kind":"markdown","value":"```clif\nv0: i32\n```\n\nparameter of `block0`, type `i32`\n\ndefined in `block0`\n\nlive in: none\n\nlive out: none"},"range":{"end":{"character":20,"line":3},"start":{"character":18,"line":3}}}
+; nextln: textDocument/hover -> {"contents":{"kind":"markdown","value":"defined by\n\n```clif\nv2 = iadd.i32 v0, v1\n```\n\ntype `i32`\n\ndefined in `block0`\n\nlive in: none\n\nlive out: none"},"range":{"end":{"character":6,"line":3},"start":{"character":4,"line":3}}}
 ; nextln: textDocument/hover -> {"contents":{"kind":"markdown","value":"`eq`\n\nequal"},"range":{"end":{"character":16,"line":4},"start":{"character":14,"line":4}}}
 ; nextln: textDocument/hover -> {"contents":{"kind":"markdown","value":"external function `%ext`"},"range":{"end":{"character":18,"line":5},"start":{"character":14,"line":5}}}
 ; nextln: textDocument/hover -> {"contents":{"kind":"markdown","value":"```clif\nfunction %add(i32, i32) -> i32\n```"},"range":{"end":{"character":18,"line":6},"start":{"character":14,"line":6}}}
 ; nextln: textDocument/hover -> {"contents":{"kind":"markdown","value":"```clif\nss0 = explicit_slot 8\n```"},"range":{"end":{"character":27,"line":7},"start":{"character":24,"line":7}}}
 ; nextln: textDocument/hover -> {"contents":{"kind":"markdown","value":"`i32`\n\nAn integer type with 32 bits."},"range":{"end":{"character":17,"line":0},"start":{"character":14,"line":0}}}
 ; nextln: textDocument/hover -> {"contents":{"kind":"markdown","value":"`i32`\n\nAn integer type with 32 bits."},"range":{"end":{"character":14,"line":2},"start":{"character":11,"line":2}}}
-; nextln: textDocument/hover -> {"contents":{"kind":"markdown","value":"```clif\nblock0(v0: i32, v1: i32):\n```"},"range":{"end":{"character":6,"line":2},"start":{"character":0,"line":2}}}
+; nextln: textDocument/hover -> {"contents":{"kind":"markdown","value":"```clif\nblock0(v0: i32, v1: i32):\n```\n\nimmediate dominator: none (entry or unreachable)\n\npredecessors: none"},"range":{"end":{"character":6,"line":2},"start":{"character":0,"line":2}}}
 ; nextln: textDocument/hover -> null
 function %add(i32, i32) -> i32 {
     ss0 = explicit_slot 8

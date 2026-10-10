@@ -1,6 +1,7 @@
 use tower_lsp_server::ls_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position, Range};
 
 use crate::document::Document;
+use crate::analysis;
 use crate::inference;
 use crate::navigation;
 use crate::resolve::{NameKind, Resolution};
@@ -66,12 +67,23 @@ fn definition_hover(document: &Document, resolution: &Resolution, def: usize) ->
         }
         kind => {
             let (_, function) = functions.into_iter().find(|(index, _)| Some(*index) == def.scope)?;
-            scoped_definition(document, function, kind, def.span)
+            scoped_definition(document, def.scope?, function, kind, def.span)
         }
     }
 }
 
-fn scoped_definition(document: &Document, function: &Function, kind: NameKind, span: Span) -> Option<String> {
+fn names(blocks: &[String]) -> String {
+    blocks.iter().map(|b| format!("`{b}`")).collect::<Vec<_>>().join(", ")
+}
+
+fn liveness_note(document: &Document, scope: usize, value: &str) -> String {
+    let found = analysis::analyze(document).into_iter().find(|a| a.scope == scope).and_then(|a| a.values.into_iter().find(|v| v.name == value));
+    let Some(life) = found else { return String::new() };
+    let list = |blocks: &[String]| if blocks.is_empty() { "none".to_owned() } else { names(blocks) };
+    format!("\n\ndefined in `{}`\n\nlive in: {}\n\nlive out: {}", life.defined_in, list(&life.live_in), list(&life.live_out))
+}
+
+fn scoped_definition(document: &Document, scope: usize, function: &Function, kind: NameKind, span: Span) -> Option<String> {
     let text = document.text();
     match kind {
         NameKind::Entity => {
@@ -80,13 +92,18 @@ fn scoped_definition(document: &Document, function: &Function, kind: NameKind, s
         }
         NameKind::Block => {
             let block = function.blocks.iter().find(|b| Span::from(b.name) == span)?;
-            Some(code(block.span.text(text)))
+            let facts = analysis::analyze(document).into_iter().find(|a| a.scope == scope)?.blocks;
+            let fact = facts.into_iter().find(|f| f.name == block.name.text(text))?;
+            let dominator = fact.immediate_dominator.map_or("none (entry or unreachable)".to_owned(), |d| format!("`{d}`"));
+            let preds = if fact.predecessors.is_empty() { "none".to_owned() } else { names(&fact.predecessors) };
+            Some(format!("{}\n\nimmediate dominator: {dominator}\n\npredecessors: {preds}", code(block.span.text(text))))
         }
         NameKind::Value => {
             for block in &function.blocks {
                 if let Some(param) = block.params.iter().find(|p| Span::from(p.value) == span) {
                     let ty = param.ty.map(|t| t.text(text)).unwrap_or("?");
-                    return Some(format!("{}\n\nparameter of `{}`, type `{ty}`", code(param.span.text(text)), block.name.text(text)));
+                    let life = liveness_note(document, scope, span.text(text));
+                    return Some(format!("{}\n\nparameter of `{}`, type `{ty}`{life}", code(param.span.text(text)), block.name.text(text)));
                 }
                 if let Some(inst) = block.insts.iter().find(|i| i.results.iter().any(|r| Span::from(*r) == span)) {
                     let mut out = format!("defined by\n\n{}", code(inst.span.text(text)));
@@ -95,6 +112,7 @@ fn scoped_definition(document: &Document, function: &Function, kind: NameKind, s
                     if let Some(ty) = ty {
                         out.push_str(&format!("\n\ntype `{ty}`"));
                     }
+                    out.push_str(&liveness_note(document, scope, span.text(text)));
                     return Some(out);
                 }
             }

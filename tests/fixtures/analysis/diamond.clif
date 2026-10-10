@@ -1,0 +1,26 @@
+; mode: lsp
+; lsp: open
+; lsp: request clif/analysis {}
+; lsp: request textDocument/hover {"position":{"line":9,"character":2}}
+; lsp: request textDocument/hover {"position":{"line":2,"character":5}}
+; check: clif/analysis -> {"functions":[{"blocks":[{"immediateDominator":null,"name":"block0","predecessors":[]},{"immediateDominator":"block0","name":"block1","predecessors":["block0"]}
+; check: {"immediateDominator":"block0","name":"block3","predecessors":["block1","block2"]}],"name":"%f","values":[
+; check: {"definedIn":"block0","liveIn":["block1","block2","block3"],"liveOut":["block0","block1","block2"],"name":"v0"}
+; check: {"definedIn":"block0","liveIn":["block1"],"liveOut":["block0"],"name":"v1"}
+; check: {"definedIn":"block0","liveIn":["block1","block2"],"liveOut":["block0"],"name":"v2"}
+; check: {"definedIn":"block1","liveIn":[],"liveOut":[],"name":"v3"}
+; check: v4: i32):\n```\n\nimmediate dominator: `block0`\n\npredecessors: `block1`, `block2`
+; check: in `block0`\n\nlive in: `block1`, `block2`\n\nlive out: `block0`
+function %f(i32, i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = iadd v0, v1
+    brif v0, block1, block2
+block1:
+    v3 = iadd v2, v1
+    jump block3(v3)
+block2:
+    jump block3(v2)
+block3(v4: i32):
+    v5 = iadd v4, v0
+    return v5
+}
