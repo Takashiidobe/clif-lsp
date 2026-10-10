@@ -264,11 +264,10 @@ const CSS: &str = r#"
 .card { border: 1px solid var(--border); border-radius: 6px; margin: 0 0 12px; max-width: 900px; overflow: hidden; }
 h2 { font-size: 14px; margin: 16px 0 8px; color: var(--muted); }
 .card .head { background: var(--head); padding: 4px 12px; font-weight: 600; }
-.form { display: grid; grid-template-columns: minmax(180px, 1fr) 160px 150px minmax(200px, 1fr); align-items: center; padding: 0 12px; border-top: 1px solid var(--border); }
+.form { display: grid; grid-template-columns: minmax(180px, 1fr) 160px minmax(200px, 1fr); align-items: center; padding: 0 12px; border-top: 1px solid var(--border); }
 .form.chosen { background: var(--new); }
 .bar { display: block; height: 10px; background: var(--line); border-radius: 2px; }
 .cost { color: var(--muted); }
-.tag { color: var(--muted); }
 .rule { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 .empty { color: var(--muted); }
 "#;
@@ -281,18 +280,10 @@ fn class_card(body: &mut String, class: &Class) {
         let chosen = if has_choice && member.chosen { " chosen" } else { "" };
         let width = member.cost.map_or(0, |cost| cost * 140 / worst);
         let cost = member.cost.map_or("cost unknown".to_owned(), |cost| format!("cost {cost}"));
-        let mut tags = Vec::new();
-        if member.original {
-            tags.push("original");
-        }
-        if has_choice && member.chosen {
-            tags.push("chosen");
-        }
         let rules: Vec<String> = member.rules.iter().map(|r| escape(&format!("{}:{}", r.file, r.line))).collect();
         body.push_str(&format!(
-            "<div class=\"form mono{chosen}\"><span>{}</span><span class=\"cost\"><i class=\"bar\" style=\"width:{width}px\"></i>{cost}</span><span class=\"tag\">{}</span><span class=\"rule\">{}</span></div>\n",
+            "<div class=\"form mono{chosen}\"><span>{}</span><span class=\"cost\"><i class=\"bar\" style=\"width:{width}px\"></i>{cost}</span><span class=\"rule\">{}</span></div>\n",
             escape(&member.text),
-            tags.join(", "),
             rules.join(", ")
         ));
     }
