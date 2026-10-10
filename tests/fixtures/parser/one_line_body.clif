@@ -1,0 +1,14 @@
+; mode: syntax-tree
+; check: function %empty @1:0 closed
+; check: function %next @2:0 closed
+; check: block block0 @3:0
+; nextln: inst @4:4 return
+; check: errors:
+; not: unclosed
+; not: unexpected
+
+function %empty() { }
+function %next() {
+block0:
+    return
+}

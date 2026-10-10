@@ -40,6 +40,10 @@ impl Parser<'_> {
         token.text(self.source)
     }
 
+    fn starts_function(&self, line: &[Token]) -> bool {
+        line.first().is_some_and(|t| t.kind == K::Ident && self.text(*t) == "function")
+    }
+
     fn split_lines(&mut self, comments: &mut Vec<Span>) -> Vec<Line> {
         let mut lines = Vec::new();
         let mut current = Vec::new();
@@ -56,6 +60,10 @@ impl Parser<'_> {
                     let message = format!("unexpected character `{}`", self.text(token));
                     self.error(token.into(), message);
                     current.push(token);
+                }
+                K::LBrace if self.starts_function(&current) => {
+                    current.push(token);
+                    lines.push(Line { tokens: std::mem::take(&mut current) });
                 }
                 _ => current.push(token),
             }
