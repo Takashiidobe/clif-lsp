@@ -73,10 +73,10 @@ pub fn use_counts(document: &Document, function: &Function) -> Vec<UseCount> {
     counts
 }
 
-fn uses_value(text: &str, inst: &Inst, value: &str) -> bool {
+pub fn uses_value(text: &str, inst: &Inst, value: &str) -> bool {
     inst.operands.iter().any(|t| t.kind == TokenKind::Value && t.text(text) == value)
 }
 
-fn inst_text(document: &Document, inst: &Inst) -> String {
+pub fn inst_text(document: &Document, inst: &Inst) -> String {
     inst.span.text(document.text()).lines().next().unwrap_or_default().trim().to_owned()
 }

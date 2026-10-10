@@ -1,0 +1,49 @@
+; mode: view
+; ^ view live_ranges
+; ^ view live_ranges %g
+; ^ view live_ranges %missing
+; check: view live_ranges
+; check: title: Live ranges of %f
+; check: == Live range map ==
+; nextln: (html page)
+; nextln: == Pressure ==
+; nextln: row | values live | values
+; nextln: block0(v0: i32, v1: i32) | 2 | v0, v1
+; nextln: v2 = iadd v0, v1 | 3 | v0, v1, v2
+; nextln: brif v0, block1, block2 | 3 | v0, v1, v2
+; nextln: block1 | 3 | v0, v1, v2
+; nextln: v3 = iadd v2, v1 | 4 | v0, v1, v2, v3
+; nextln: jump block3(v3) | 2 | v0, v3
+; nextln: block2 | 2 | v0, v2
+; nextln: jump block3(v2) | 2 | v0, v2
+; nextln: block3(v4: i32) | 2 | v0, v4
+; nextln: v5 = iadd v4, v0 | 3 | v0, v4, v5
+; nextln: return v5 | 1 | v5
+; check: view live_ranges %g
+; check: title: Live ranges of %g
+; nextln: function: %g
+; nextln: == Live range map ==
+; nextln: (html page)
+; nextln: == Pressure ==
+; nextln: row | values live | values
+; nextln: block0(v0: i32) | 1 | v0
+; nextln: return | 0 |
+; check: view live_ranges %missing
+; nextln: error: no function `%missing`
+function %f(i32, i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = iadd v0, v1
+    brif v0, block1, block2
+block1:
+    v3 = iadd v2, v1
+    jump block3(v3)
+block2:
+    jump block3(v2)
+block3(v4: i32):
+    v5 = iadd v4, v0
+    return v5
+}
+function %g(i32) {
+block0(v0: i32):
+    return
+}

@@ -14,6 +14,7 @@ pub mod html;
 pub mod inference;
 pub mod inlay;
 pub mod lexer;
+pub mod live_range;
 pub mod modes;
 pub mod navigation;
 pub mod parser;

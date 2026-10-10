@@ -6,6 +6,7 @@ use crate::cfg;
 use crate::def_use;
 use crate::document::Document;
 use crate::egraph;
+use crate::live_range;
 use crate::provenance::{self, Status};
 use crate::regalloc::{self, Event};
 use crate::stages::{self, Stage};
@@ -38,7 +39,7 @@ pub struct TreeNode {
     pub children: Vec<TreeNode>,
 }
 
-const VIEWS: [&str; 9] = ["cfg", "analysis", "def_use", "use_counts", "stage", "allocators", "regalloc", "provenance", "egraph"];
+const VIEWS: [&str; 10] = ["cfg", "analysis", "def_use", "use_counts", "live_ranges", "stage", "allocators", "regalloc", "provenance", "egraph"];
 
 pub fn render(document: &Document, view: &str, function: Option<&str>, args: &Value) -> Result<View, String> {
     match view {
@@ -46,6 +47,7 @@ pub fn render(document: &Document, view: &str, function: Option<&str>, args: &Va
         "analysis" => analysis_view(document, function),
         "def_use" => def_use_view(document, function, args),
         "use_counts" => use_counts_view(document, function),
+        "live_ranges" => live_ranges_view(document, function),
         "stage" => stage_view(document, function, args),
         "allocators" => allocators_view(document, function),
         "regalloc" => regalloc_view(document, function),
@@ -167,6 +169,29 @@ fn def_use_view(document: &Document, function: Option<&str>, args: &Value) -> Re
                 rows: vec![vec![value.to_owned(), definition.block, definition.text]],
             },
             Section::Tree { title: "Uses".to_owned(), nodes: def_use::uses(document, function, value, depth) },
+        ],
+    })
+}
+
+fn live_ranges_view(document: &Document, function: Option<&str>) -> Result<View, String> {
+    let all = analysis::analyze(document);
+    let analysis = pick(&all, |a| &a.name, function)?;
+    let map = live_range::map(document, analysis);
+    let pressure = (0..map.rows.len())
+        .map(|row| {
+            let live = map.live_at(row);
+            vec![map.rows[row].text.clone(), live.len().to_string(), live.join(", ")]
+        })
+        .collect();
+    let columns = ["row", "values live", "values"].map(str::to_owned).to_vec();
+    Ok(View {
+        schema: SCHEMA,
+        view: "live_ranges".to_owned(),
+        title: format!("Live ranges of {}", analysis.name),
+        function: analysis.name.clone(),
+        sections: vec![
+            Section::Html { title: "Live range map".to_owned(), html: map.html() },
+            Section::Table { title: "Pressure".to_owned(), columns, rows: pressure },
         ],
     })
 }
