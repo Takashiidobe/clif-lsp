@@ -65,6 +65,13 @@ pub fn references(document: &Document, position: Position, include_declaration: 
         .collect()
 }
 
+pub fn highlights(document: &Document, position: Position) -> Vec<(Range, bool)> {
+    let resolution = resolution(document);
+    let Some(target) = find(&resolution, document.offset(position)) else { return Vec::new() };
+    let declaration = target.def.map(|id| resolution.defs[id].span);
+    occurrences(&resolution, &target).into_iter().map(|span| (range(document, span), Some(span) == declaration)).collect()
+}
+
 pub fn prepare_rename(document: &Document, position: Position) -> Option<(Range, String)> {
     let resolution = resolution(document);
     let target = find(&resolution, document.offset(position))?;
