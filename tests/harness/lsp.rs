@@ -185,6 +185,23 @@ async fn step(client: &mut Client, source: &str, command: &str) -> Result<String
             }
             Ok(out)
         }
+        "signature" => {
+            let (line, col) = rest.split_once(':').ok_or("expected `signature L:C`")?;
+            let position = json!({"line": line.parse::<u32>().map_err(|e| e.to_string())?, "character": col.parse::<u32>().map_err(|e| e.to_string())?});
+            let params = json!({"textDocument": client.text_document(), "position": position});
+            let response = client.request("textDocument/signatureHelp", params).await?;
+            let help: Value = serde_json::from_str(&response).map_err(|_| response.clone())?;
+            let Some(signature) = help["signatures"].get(0) else { return Ok(format!("signature {rest} -> (none)")) };
+            let label = signature["label"].as_str().unwrap_or("");
+            let chars: Vec<char> = label.chars().collect();
+            let active = signature["activeParameter"].as_u64();
+            let shown = signature["parameters"].as_array().into_iter().flatten().enumerate().map(|(i, p)| {
+                let (start, end) = (p["label"][0].as_u64().unwrap_or(0) as usize, p["label"][1].as_u64().unwrap_or(0) as usize);
+                let word: String = chars[start..end].iter().collect();
+                if active == Some(i as u64) { format!("[{word}]") } else { word }
+            }).collect::<Vec<_>>().join(" ");
+            Ok(format!("signature {rest} -> {label} | {shown}"))
+        }
         "await" => Ok(format!("{rest} <- {}", client.await_notification(rest).await?)),
         _ => Err(format!("unknown lsp command `{command}`")),
     }

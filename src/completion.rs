@@ -92,6 +92,15 @@ fn operand_items(document: &Document, offset: usize, opcode: &str, operands: &st
     items
 }
 
+pub fn instruction_body(prefix: &str) -> Option<&str> {
+    let trimmed = prefix.trim_start();
+    match trimmed.split_once('=') {
+        Some((_, rest)) => Some(rest.trim_start()),
+        None if prefix.starts_with(char::is_whitespace) => Some(trimmed),
+        None => None,
+    }
+}
+
 pub fn at(document: &Document, position: Position) -> Vec<CompletionItem> {
     let text = document.text();
     let offset = document.offset(position);
@@ -104,11 +113,7 @@ pub fn at(document: &Document, position: Position) -> Vec<CompletionItem> {
     if trimmed.starts_with("function") || (trimmed.starts_with("block") && trimmed.contains('(')) {
         return header_items(prefix);
     }
-    let body = match trimmed.split_once('=') {
-        Some((_, rest)) => rest.trim_start(),
-        None if prefix.starts_with(char::is_whitespace) => trimmed,
-        None => return Vec::new(),
-    };
+    let Some(body) = instruction_body(prefix) else { return Vec::new() };
     match body.split_once(char::is_whitespace) {
         None => match body.split_once('.') {
             Some((opcode, _)) if tables::opcode(opcode).is_some() => type_items(),

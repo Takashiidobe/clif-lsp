@@ -25,4 +25,6 @@ Diagnostics policy (`diagnostics::all`): parser errors are errors. Name-resoluti
 
 `actions L:C-L:C` requests code actions for that range and prints one line per action (title, kind, `(preferred)`, then its edits as `L:C-L:C "text"`), or `(none)`.
 
+`signature L:C` requests signature help and prints `signature L:C -> <label> | <parameters>` with the active parameter in brackets, or `(none)`.
+
 `tokens` requests full semantic tokens and prints `tokens` followed by one `L:C <type> <text>` line per token, decoded with the legend from `initialize`.

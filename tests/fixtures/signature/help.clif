@@ -1,0 +1,54 @@
+; mode: lsp
+; lsp: open
+; lsp: signature 4:14
+; lsp: signature 4:18
+; lsp: signature 5:14
+; lsp: signature 5:18
+; lsp: signature 5:22
+; lsp: signature 6:18
+; lsp: signature 6:25
+; lsp: signature 6:27
+; lsp: signature 6:30
+; lsp: signature 7:18
+; lsp: signature 7:22
+; lsp: signature 7:27
+; lsp: signature 9:9
+; lsp: signature 9:13
+; lsp: signature 9:21
+; lsp: signature 10:11
+; lsp: signature 4:10
+; lsp: signature 3:10
+; check: signature 4:14 -> a = iadd x, y | [x] y
+; nextln: signature 4:18 -> a = iadd x, y | x [y]
+; nextln: signature 5:14 -> a = icmp Cond, x, y | [Cond] x y
+; nextln: signature 5:18 -> a = icmp Cond, x, y | Cond [x] y
+; nextln: signature 5:22 -> a = icmp Cond, x, y | Cond x [y]
+; nextln: signature 6:18 -> a = load MemFlags, p, Offset | [MemFlags] p Offset
+; nextln: signature 6:25 -> a = load MemFlags, p, Offset | [MemFlags] p Offset
+; nextln: signature 6:27 -> a = load MemFlags, p, Offset | MemFlags [p] Offset
+; nextln: signature 6:30 -> a = load MemFlags, p, Offset | MemFlags p [Offset]
+; nextln: signature 7:18 -> %callee(i32, i64) -> i32 | [i32] i64
+; nextln: signature 7:22 -> %callee(i32, i64) -> i32 | i32 [i64]
+; nextln: signature 7:27 -> rvals = call FN, args | [FN] args
+; nextln: signature 9:9 -> brif c, block_then, block_else | [c] block_then block_else
+; nextln: signature 9:13 -> brif c, block_then, block_else | c [block_then] block_else
+; nextln: signature 9:21 -> brif c, block_then, block_else | c block_then [block_else]
+; nextln: signature 10:11 -> return rvals | [rvals]
+; nextln: signature 4:10 -> (none)
+; nextln: signature 3:10 -> (none)
+function %f(i32, i64) -> i32 {
+    sig0 = (i32, i64) -> i32
+    fn0 = %callee sig0
+block0(v0: i32, v1: i64):
+    v2 = iadd v0, v0
+    v3 = icmp slt v0, v0
+    v4 = load.i32 notrap v1, 0
+    v5 = call fn0(v0, v1)
+    v6 = call fn0(v0, v1)
+    brif v0, block1, block2
+    return v2
+block1:
+    return v2
+block2:
+    return v2
+}
