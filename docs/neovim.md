@@ -125,7 +125,7 @@ vim.api.nvim_create_user_command('ClifView', function(o)
         elseif s.kind == 'diff' then
           table.insert(out, s.text)
         elseif s.kind == 'html' then
-          table.insert(out, '(web page: use :ClifCfg, :ClifRegalloc, :ClifProvenance, :ClifEgraph, :ClifLiveRanges, :ClifPasses, :ClifDisasm, :ClifUseCounts or :ClifDefUse)')
+          table.insert(out, '(web page: use the view\'s own command, see Views)')
         elseif s.kind == 'table' then
           table.insert(out, table.concat(s.columns, '\t'))
           for _, row in ipairs(s.rows) do
@@ -145,40 +145,26 @@ end, { nargs = '+' })
 
 - `:ClifStage [stage] [function]` shows `parsed`, `optimized` (the default), or
   `vcode`. `optimized` and `vcode` use the file's `target` line, or x86_64
-  without one. The function defaults to the first one, and is written with its `%`, as in
-  `:ClifStage vcode %main`.
+  without one. Write the function with its `%`, as in `:ClifStage vcode %main`.
+  It defaults to the first function.
 - `:ClifGraph` shows each function's graph as Graphviz DOT. Save the buffer to a
   file and run `dot -Tpng graph.dot -o graph.png` to draw it. This needs
   Graphviz.
-- `:ClifGraphImage [function]` draws the graph and opens the image in a split.
-  It draws every function, or only the one you name, as in
-  `:ClifGraphImage %main`. See [Drawing the graph](#drawing-the-graph).
 - `:ClifAnalysis` shows dominators and liveness as a Lua table.
-- `:ClifView view [function] [args]` shows a `clif/view` view: `cfg`,
-  `analysis`, `def_use`, `use_counts`, `live_ranges`, `passes`, `diff`, `disasm`, `stage`, `allocators`,
-  `regalloc`, `provenance` or `egraph`. The function
-  defaults to the first one. `args` is a JSON object and needs the function
-  before it, as in `:ClifView stage %main {"stage":"vcode"}`.
-  `:ClifView allocators` compares the two register allocators.
-  `:ClifView provenance %main` shows the same data as text only.
-- `:ClifCfg [function]` opens the control flow graph as a web page, with each
-  block's instructions in its box. Unlike `:ClifGraphImage` it needs no
-  Graphviz. See [Register allocation](#register-allocation) for the setup.
-- `:ClifRegalloc [function]` shows the register assignments, spills and reloads
-  as tables and a web page. See [Register allocation](#register-allocation).
-- `:ClifEgraph [function]` shows the equivalent forms the optimizer considered
-  for each instruction and which it chose, as tables and a web page. See
-  [Register allocation](#register-allocation) for the setup.
-- `:ClifProvenance [function]` shows which input instruction each optimized
-  instruction came from, and which were folded away or created, as tables and a
-  web page. See [Register allocation](#register-allocation) for the setup.
+- `:ClifView view [function] [args]` shows any `clif/view` view as text. `args`
+  is a JSON object and needs the function before it, as in
+  `:ClifView stage %main {"stage":"vcode"}`. Tables and trees print as text; web
+  pages are skipped.
 
 ## Drawing the graph
 
-`:ClifGraphImage` needs Graphviz (`dot` on your `PATH`) and a terminal that
-supports the kitty graphics protocol, such as kitty, Ghostty, or WezTerm. It
-also needs [snacks.nvim](https://github.com/folke/snacks.nvim) with images
-turned on, and ImageMagick:
+`:ClifGraphImage [function]` draws the graph of every function, or only the one
+you name, and opens the image in a split. For a graph in the browser with no
+Graphviz, use `:ClifCfg` under [Views](#views).
+
+It needs Graphviz (`dot` on your `PATH`), ImageMagick, a terminal that supports
+the kitty graphics protocol (kitty, Ghostty or WezTerm), and
+[snacks.nvim](https://github.com/folke/snacks.nvim) with images turned on:
 
 ```lua
 { 'folke/snacks.nvim', opts = { image = { enabled = true } } }
@@ -222,15 +208,14 @@ For `tests/fixtures/analysis/diamond.clif`, `:ClifGraphImage` opens this:
 
 ![Control flow graph of the diamond fixture](images/diamond-cfg.png)
 
-## Register allocation
+## Views
 
-`:ClifRegalloc [function]` shows where the register allocator put each value:
-the totals, per-value assignments and register pressure in a scratch buffer, and
-a web page in your browser with a chart of instructions down and values across.
-Each cell shows where the value lives, with a bar for the registers live at each
-instruction. Spills are red, reloads green and moves yellow. The page is plain
-HTML, so it needs no Graphviz, and the browser handles zoom and scrolling. The
-same helper drives `:ClifCfg` and `:ClifProvenance` below.
+Each view puts its tables in a scratch buffer and opens its web page in your
+browser through `vim.ui.open` (`xdg-open` on Linux). The pages are plain HTML,
+so they need no Graphviz and the browser handles zoom and scrolling. See the
+[README](../README.md#features) for what each one looks like.
+
+Add this helper and one line per view to your `init.lua`, after `request`:
 
 ```lua
 local function graphical_view(command, view, request_of)
@@ -263,131 +248,116 @@ local function graphical_view(command, view, request_of)
 end
 
 graphical_view('ClifCfg', 'cfg')
-graphical_view('ClifRegalloc', 'regalloc')
-graphical_view('ClifProvenance', 'provenance')
-```
-
-The page opens through `vim.ui.open`, so with `xdg-open` on Linux.
-
-`:ClifCfg [function]` draws the control flow graph the same way: one box per
-block listing its instructions, edges below it, loops looping around the right
-edge. The entry block has a blue edge and unreachable blocks are dashed.
-
-The value numbers are those of the optimized function, so they can differ from
-the file. See the `regalloc` view in [custom requests](requests.md#clifview).
-
-`:ClifProvenance [function]` uses the same helper for the optimizer. The tables
-go to the scratch buffer, and a web page opens in your browser with the input
-instructions on the left and the optimized ones on the right, joined by a curve
-wherever the optimizer kept an instruction's source tag. Hover a row to
-highlight its link and the row at the other end. Inputs that are gone are red,
-changed outputs yellow and new ones green; a new output has no curve into it
-because Cranelift records no provenance for instructions it creates. The page
-is plain HTML and SVG, so it needs no Graphviz, and the browser handles zoom
-and scrolling.
-
-`:ClifEgraph [function]` uses the same helper for the optimizer's e-graph. The
-tables go to the scratch buffer, and a web page opens with a card per input
-instruction listing its equivalent forms, their costs and the ISLE rule that
-produced them. The form the extractor chose is green. Add it next to the other
-`graphical_view` calls:
-
-```lua
-graphical_view('ClifEgraph', 'egraph')
-```
-
-It shows nothing useful with `set opt_level=none`, since the egraph pass does
-not run.
-
-## Live ranges
-
-`:ClifLiveRanges [function]` shows where each value of the file is live. The
-pressure table (how many values are live at each block header and instruction)
-goes to the scratch buffer, and a web page opens with instructions down and
-values across. A cell reads `def` where the value is defined, `|` while it is
-live and `use` at its last use in a block. A value that lives out of a block
-stays live to the block's end. Unlike `:ClifRegalloc` it works on the file as
-written, with no `target` line needed. Add it next to the other
-`graphical_view` calls:
-
-```lua
-graphical_view('ClifLiveRanges', 'live_ranges')
-```
-
-## Optimization passes
-
-`:ClifPasses [function]` steps through what the optimizer does to a function.
-The scratch buffer lists the passes with the lines each one added and removed,
-and a web page opens at the input. Each step shows the function after that
-pass, with added lines green, changed lines yellow and removed lines red and
-struck through. Click the arrows, the names across the top, or press the left and
-right arrow keys to move between steps. Each step has its own URL fragment
-(`#step-3`), so the page can be bookmarked at a step. It is one file with no
-Graphviz and no external requests.
-
-The steps are `parsed`, `canonicalize_nans`, `unreachable_code`,
-`constant_phis`, `egraph` and `vcode`. They are the public steps of Cranelift's
-`Context::optimize`, replayed one by one, so everything the optimizer rewrites
-happens in `egraph`. Use `:ClifEgraph` to see what it considered inside that
-step. `canonicalize_nans` runs only with the `enable_nan_canonicalization`
-flag, and `egraph` only when `opt_level` is not `none`; skipped steps stay in
-the list and say why. `vcode` is machine IR, shown as is rather than diffed.
-`optimized` is the same as `egraph` and works wherever a step name is wanted.
-
-`:ClifDiff [from] [to] [function]` prints a unified diff between any two steps
-in the scratch buffer. It defaults to `parsed` and `optimized`. `:ClifStage
-egraph` shows one step's full text. Add them next to the other `graphical_view`
-calls:
-
-```lua
 graphical_view('ClifPasses', 'passes')
-graphical_view('ClifDiff', 'diff', function(fargs)
-  return fargs[3], { from = fargs[1], to = fargs[2] }
-end)
-```
-
-## Disassembly
-
-`:ClifDisasm [function]` compiles the function for the file's `target` line
-(x86_64 without one) and shows the machine code. The scratch buffer has a
-summary and a table with one row per machine instruction: its offset, bytes,
-disassembly and the CLIF instruction it came from. A web page opens with the
-same rows grouped under each CLIF instruction; hover a group to outline it.
-
-The CLIF is the optimized function, so value numbers can differ from the file.
-A CLIF instruction owns every machine instruction up to the next one, so the
-epilogue (`popq`, `retq`) is listed under the `return`. Instructions with no
-CLIF instruction, such as the prologue, have a blank CLIF column. x86_64,
-aarch64, riscv64 and s390x are supported; the disassembler is Capstone, built
-into the server, so nothing needs to be installed. Add it next to the other
-`graphical_view` calls:
-
-```lua
+graphical_view('ClifEgraph', 'egraph')
+graphical_view('ClifProvenance', 'provenance')
+graphical_view('ClifRegalloc', 'regalloc')
+graphical_view('ClifLiveRanges', 'live_ranges')
 graphical_view('ClifDisasm', 'disasm')
-```
-
-## Uses
-
-`:ClifUseCounts [function]` lists the values with no uses and the values with
-exactly one use, with the instruction that uses it. The tables go to the
-scratch buffer and the same two tables open as a web page.
-
-`:ClifDefUse [value] [function] [depth]` shows where a value is defined and the
-instructions that use it. Without a value it takes the word under the cursor, so
-put the cursor on `v2` and run `:ClifDefUse`. The page shows the uses as a tree
-you can fold. A `depth` of 2 or more also shows the uses of those instructions'
-results; the default is 1. Block parameters are not followed through branches,
-so a `jump block3(v3)` ends the tree.
-
-Add both next to the other `graphical_view` calls:
-
-```lua
 graphical_view('ClifUseCounts', 'use_counts')
 graphical_view('ClifDefUse', 'def_use', function(fargs)
   local value = fargs[1] or vim.fn.expand('<cword>')
   return fargs[2], { value = value, depth = tonumber(fargs[3]) }
 end)
+graphical_view('ClifDiff', 'diff', function(fargs)
+  return fargs[3], { from = fargs[1], to = fargs[2] }
+end)
 ```
+
+All of them take an optional function name, as in `:ClifCfg %main`, and default
+to the first function. `:ClifCfg`, `:ClifEgraph`, `:ClifProvenance`,
+`:ClifRegalloc`, `:ClifLiveRanges`, `:ClifDisasm` and `:ClifUseCounts` take
+nothing else.
+
+### Control flow graph
+
+`:ClifCfg` draws one box per block listing its instructions, with edges below
+and loops looping around the right edge. The entry block has a blue edge and
+unreachable blocks are dashed.
+
+### Optimization passes
+
+`:ClifPasses` steps through what the optimizer does to a function. The scratch
+buffer lists the passes with the lines each added and removed, and the page
+opens at the input. Added lines are green, changed lines yellow and removed
+lines red and struck through. Click the arrows or step names, or press the left
+and right arrow keys, to move between steps. Each step has its own URL fragment
+(`#step-3`), so you can bookmark one.
+
+The steps are `parsed`, `canonicalize_nans`, `unreachable_code`,
+`constant_phis`, `egraph` and `vcode`. Everything the optimizer rewrites happens
+in `egraph`; use `:ClifEgraph` to see what it considered there.
+`canonicalize_nans` runs only with the `enable_nan_canonicalization` flag, and
+`egraph` only when `opt_level` is not `none`. Skipped steps stay in the list and
+say why. `vcode` is shown as is, not diffed. `optimized` means `egraph` wherever
+a step name is accepted.
+
+`:ClifDiff [from] [to] [function]` prints a unified diff between any two steps
+in the scratch buffer. It defaults to `parsed` and `optimized`.
+`:ClifStage egraph` shows one step's full text.
+
+### E-graph
+
+`:ClifEgraph` shows a card per input instruction with its equivalent forms,
+their costs and the ISLE rule that produced them. The form the extractor chose
+is green. It shows nothing useful with `set opt_level=none`, since the egraph
+pass does not run.
+
+### Provenance
+
+`:ClifProvenance` shows the input instructions on the left and the optimized
+ones on the right, joined by a curve wherever the optimizer kept an
+instruction's source tag. Hover a row to highlight its link and the row at the
+other end. Inputs that are gone are red, changed outputs yellow and new ones
+green. A new output has no curve into it, because Cranelift records no
+provenance for instructions it creates.
+
+### Register allocation
+
+`:ClifRegalloc` shows where the allocator put each value. The scratch buffer has
+the totals, per-value assignments and register pressure, and the page has a
+chart with instructions down and values across. Each cell shows where the value
+lives, with a bar for the registers live at each instruction. Spills are red,
+reloads green and moves yellow.
+
+The value numbers are those of the optimized function, so they can differ from
+the file.
+
+### Live ranges
+
+`:ClifLiveRanges` shows where each value is live. The scratch buffer has the
+pressure table (how many values are live at each block header and instruction),
+and the page has instructions down and values across. A cell reads `def` where
+the value is defined, `|` while it is live and `use` at its last use in a block.
+A value that lives out of a block stays live to the block's end. Unlike
+`:ClifRegalloc`, it works on the file as written and needs no `target` line.
+
+### Disassembly
+
+`:ClifDisasm` compiles the function for the file's `target` line (x86_64 without
+one) and shows the machine code. The scratch buffer has a summary and a table
+with one row per machine instruction: offset, bytes, disassembly and the CLIF
+instruction it came from. The page groups the same rows under each CLIF
+instruction; hover a group to outline it.
+
+The CLIF is the optimized function, so value numbers can differ from the file. A
+CLIF instruction owns every machine instruction up to the next one, so the
+epilogue (`popq`, `retq`) is listed under the `return`. Instructions with no
+CLIF instruction, such as the prologue, have a blank CLIF column. x86_64,
+aarch64, riscv64 and s390x are supported. The disassembler is built into the
+server, so nothing needs to be installed.
+
+### Uses
+
+`:ClifUseCounts` lists the values with no uses and the values with exactly one
+use, with the instruction that uses it.
+
+`:ClifDefUse [value] [function] [depth]` shows where a value is defined and the
+instructions that use it as a tree you can fold. Without a value it takes the
+word under the cursor, so put the cursor on `v2` and run `:ClifDefUse`. A
+`depth` of 2 or more also shows the uses of those instructions' results; the
+default is 1. Block parameters are not followed through branches, so a
+`jump block3(v3)` ends the tree.
 
 ## Trying it on the fixtures
 

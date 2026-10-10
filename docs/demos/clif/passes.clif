@@ -1,0 +1,8 @@
+set opt_level=speed
+target x86_64
+function %f(i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst.i32 0
+    v2 = iadd v0, v1
+    return v2
+}

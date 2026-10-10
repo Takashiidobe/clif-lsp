@@ -1,0 +1,14 @@
+function %f(i32) -> i32 {
+block0(v0: i32):
+    brif v0, block1, block2
+block1:
+    br_table v0, block2, [block3, block1]
+block2:
+    jump block1
+block3:
+    return v0
+block4:
+    jump block5
+block5:
+    return v0
+}

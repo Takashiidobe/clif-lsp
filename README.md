@@ -10,7 +10,7 @@ formatting, and views of the CFG and compiled output for `.clif` files.
 You need a Rust toolchain.
 
 ```sh
-cargo install clif-lsp
+cargo install clif-lsp # or cargo binstall
 ```
 
 To build from a checkout instead, run `cargo install --path .`.
@@ -20,9 +20,9 @@ no arguments.
 
 Or download a prebuilt binary for Linux, macOS, or Windows from the
 [releases page](https://github.com/Takashiidobe/clif-lsp/releases) and put it on
-your `PATH`. This needs no Rust toolchain.
+your `$PATH`.
 
-To use it in Neovim, see [docs/neovim.md](docs/neovim.md). Any editor that can
+For Neovim setup, see [docs/neovim.md](docs/neovim.md). Any editor that can
 launch a stdio language server works the same way.
 
 ## What you get
@@ -46,6 +46,64 @@ launch a stdio language server works the same way.
 Every feature is described in [docs/features.md](docs/features.md). The custom
 requests are in [docs/requests.md](docs/requests.md).
 
+## Features
+
+### Control flow graph
+
+Draws each block with its instructions and the edges between blocks.
+
+![Control flow graph](docs/images/cfg.gif)
+
+### Optimization passes
+
+Steps through each optimizer pass and shows what it added and removed.
+
+![Optimization passes](docs/images/passes.gif)
+
+### E-graph
+
+Shows the equivalent forms the optimizer considered for each value.
+
+![E-graph](docs/images/egraph.gif)
+
+### Provenance
+
+Maps each optimized instruction back to the input instructions it came from.
+
+![Provenance](docs/images/provenance.gif)
+
+### Register allocation
+
+Shows where the register allocator put each value, with spills, reloads and
+pressure.
+
+![Register allocation](docs/images/regalloc.gif)
+
+### Live ranges
+
+Shows where each value is live, instruction by instruction.
+
+![Live ranges](docs/images/live_ranges.gif)
+
+### Disassembly
+
+Shows the machine code for a function, grouped under the CLIF instruction that
+produced it.
+
+![Disassembly](docs/images/disasm.gif)
+
+### Definitions and uses
+
+Shows where a value is defined and the tree of instructions that use it.
+
+![Definitions and uses](docs/images/def_use.gif)
+
+### Use counts
+
+Lists the values that are never used and the values used exactly once.
+
+![Use counts](docs/images/use_counts.gif)
+
 ## Limits
 
 - The server works on one open file at a time. It does not read other files in
@@ -57,8 +115,3 @@ requests are in [docs/requests.md](docs/requests.md).
 
 Licensed under either of [Apache-2.0](LICENSE-APACHE) or [MIT](LICENSE-MIT), at
 your option.
-
-## Contributing
-
-Tests are `.clif` fixtures run with `cargo test --test fixtures`. See
-[tests/fixtures/README.md](tests/fixtures/README.md) for the directives.

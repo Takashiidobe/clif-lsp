@@ -88,8 +88,8 @@ Quick fixes attach to the diagnostic they solve:
 - **Add block parameter `v: type`**: for a value used but never defined in a
   block other than the entry block. The type comes from the signature for
   `return`, from the target block's parameter for a branch argument, or from a
-  block parameter used in the same `iadd`-style instruction. If none applies, the
-  action is not offered. Branches into the block are not updated, so the
+  block parameter used in the same `iadd`-style instruction. If none applies,
+  the action is not offered. Branches into the block are not updated, so the
   verifier will report the missing arguments afterwards.
 
 Refactor:
@@ -133,5 +133,7 @@ alone, and everything else is formatted even if it has errors.
 
 ## Custom requests
 
-Three requests go beyond LSP: the control flow graph, dominance and liveness,
-and the optimized or lowered form of a function. See [requests.md](requests.md).
+Four requests go beyond LSP: the optimized or lowered form of a function, the
+control flow graph, dominance and liveness, and `clif/view`, which serves the
+register allocation, optimizer, disassembly and use views shown in the
+[README](../README.md#features). See [requests.md](requests.md).
