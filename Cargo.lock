@@ -70,6 +70,7 @@ dependencies = [
  "cranelift-reader",
  "filecheck",
  "ropey",
+ "serde",
  "serde_json",
  "tokio",
  "tower-lsp-server",

@@ -2,10 +2,9 @@ use std::collections::VecDeque;
 use std::time::Duration;
 
 use clif_lsp::modes::{parse_edit, plain_text};
-use clif_lsp::server::Backend;
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, DuplexStream, ReadHalf, WriteHalf, split};
-use tower_lsp_server::{LspService, Server};
+use tower_lsp_server::Server;
 
 const URI: &str = "file:///fixture.clif";
 const TIMEOUT: Duration = Duration::from_secs(5);
@@ -133,7 +132,7 @@ async fn step(client: &mut Client, source: &str, command: &str) -> Result<String
         "request" => {
             let (method, params) = rest.split_once(' ').unwrap_or((rest, "{}"));
             let mut params: Value = serde_json::from_str(params).map_err(|e| format!("bad params for `{method}`: {e}"))?;
-            if method.starts_with("textDocument/") && params.get("textDocument").is_none() {
+            if (method.starts_with("textDocument/") || method.starts_with("clif/")) && params.get("textDocument").is_none() {
                 params["textDocument"] = client.text_document();
             }
             Ok(format!("{method} -> {}", client.request(method, params).await?))
@@ -266,7 +265,7 @@ async fn step(client: &mut Client, source: &str, command: &str) -> Result<String
 async fn session(source: &str) -> Result<String, String> {
     let (client_io, server_io) = tokio::io::duplex(1 << 16);
     let (server_read, server_write) = split(server_io);
-    let (service, socket) = LspService::new(Backend::new);
+    let (service, socket) = clif_lsp::server::service();
     let server = tokio::spawn(Server::new(server_read, server_write, socket).serve(service));
     let (client_read, client_write) = split(client_io);
     let mut client = Client {

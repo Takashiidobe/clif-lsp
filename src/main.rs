@@ -1,8 +1,8 @@
-use clif_lsp::server::Backend;
-use tower_lsp_server::{LspService, Server};
+use clif_lsp::server::service;
+use tower_lsp_server::Server;
 
 #[tokio::main]
 async fn main() {
-    let (service, socket) = LspService::new(Backend::new);
+    let (service, socket) = service();
     Server::new(tokio::io::stdin(), tokio::io::stdout(), socket).serve(service).await;
 }

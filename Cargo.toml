@@ -19,5 +19,6 @@ harness = false
 cranelift-codegen = "=0.136.2"
 cranelift-reader = "=0.136.2"
 ropey = "1"
+serde = { version = "1.0.229", features = ["derive"] }
 tokio = { version = "1.53.2", features = ["macros", "rt-multi-thread", "io-std", "sync"] }
 tower-lsp-server = "0.23"

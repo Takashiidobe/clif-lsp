@@ -15,7 +15,7 @@ Whenever the reader accepts a file, name resolution must report no problems for 
 
 `document` mode exercises the document store. `at` carets print the LSP UTF-16 column for a byte position and the byte column it maps back to. `edit L:C-L:C text` carets (LSP coordinates, `\n` for newline) are applied in order to the file with directive and caret lines removed, then the text and parser error count are printed.
 
-`lsp` mode runs the real server in-process over a tokio duplex stream (`tests/harness/lsp.rs`). It sends `initialize`/`initialized`, then each `; lsp:` line in order, then `shutdown` and `exit`, and prints one transcript line per step. The document is the file with directive and caret lines removed, so positions in `lsp:` commands ignore the header. Commands: `open`, `change L:C-L:C text`, `close`, and `request <method> [json params]` (a `textDocument` is added for `textDocument/*` methods). Requests print `<method> -> <json result>` or `error <code> <message>`.
+`lsp` mode runs the real server in-process over a tokio duplex stream (`tests/harness/lsp.rs`). It sends `initialize`/`initialized`, then each `; lsp:` line in order, then `shutdown` and `exit`, and prints one transcript line per step. The document is the file with directive and caret lines removed, so positions in `lsp:` commands ignore the header. Commands: `open`, `change L:C-L:C text`, `close`, and `request <method> [json params]` (a `textDocument` is added for `textDocument/*` and `clif/*` methods). Requests print `<method> -> <json result>` or `error <code> <message>`.
 
 `await <method>` waits for a server notification (for example `textDocument/publishDiagnostics`) and prints `<method> <- <json params>`. Notifications that arrive earlier are queued and returned in order.
 

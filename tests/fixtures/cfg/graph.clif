@@ -1,0 +1,30 @@
+; mode: lsp
+; lsp: open
+; lsp: await textDocument/publishDiagnostics
+; lsp: request clif/controlFlowGraph {}
+; check: "message":"block `block4` is unreachable","range":{"end":{"character":6,"line":9},"start":{"character":0,"line":9}},"severity":4,"source":"clif-lsp","tags":[1]}
+; check: "message":"block `block5` is unreachable"
+; not: block3` is unreachable
+; check: clif/controlFlowGraph -> {"functions":[{"blocks":[{"name":"block0","reachable":true,"successors":[1,2]},{"name":"block1","reachable":true,"successors":[2,3,1]}
+; check: {"name":"block4","reachable":false,"successors":[5]},{"name":"block5","reachable":false,"successors":[]}]
+; check: digraph \"%f\" {\n    \"block0\";\n    \"block0\" -> \"block1\";
+; check: \"block4\" [style=dashed];\n    \"block4\" -> \"block5\";
+; check: {"blocks":[{"name":"block0","reachable":true,"successors":[]}],"dot":"digraph \"%g\" {\n    \"block0\";\n}\n","entry":0,"name":"%g"}
+function %f(i32) -> i32 {
+block0(v0: i32):
+    brif v0, block1, block2
+block1:
+    br_table v0, block2, [block3, block1]
+block2:
+    jump block1
+block3:
+    return v0
+block4:
+    jump block5
+block5:
+    return v0
+}
+function %g() {
+block0:
+    return
+}

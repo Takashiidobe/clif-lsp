@@ -9,10 +9,13 @@ use tower_lsp_server::ls_types::{
     PrepareRenameResponse, ReferenceParams, RenameOptions, RenameParams, SemanticTokens, SemanticTokensOptions, SemanticTokensParams, SemanticTokensFullOptions, SemanticTokensResult,
     SemanticTokensServerCapabilities, TextDocumentPositionParams, TextEdit, WorkspaceEdit, ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
 };
-use tower_lsp_server::{Client, LanguageServer};
+use serde::{Deserialize, Serialize};
+use tower_lsp_server::{Client, ClientSocket, LanguageServer, LspService};
+use tower_lsp_server::ls_types::TextDocumentIdentifier;
 
 use crate::actions;
 use crate::calls;
+use crate::cfg;
 use crate::completion;
 use crate::diagnostics;
 use crate::document::Document;
@@ -24,6 +27,21 @@ use crate::semantic;
 use crate::signature;
 use crate::symbols;
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GraphParams {
+    pub text_document: TextDocumentIdentifier,
+}
+
+#[derive(Serialize)]
+pub struct GraphResponse {
+    pub functions: Vec<cfg::Graph>,
+}
+
+pub fn service() -> (LspService<Backend>, ClientSocket) {
+    LspService::build(Backend::new).custom_method("clif/controlFlowGraph", Backend::control_flow_graph).finish()
+}
+
 pub struct Backend {
     client: Client,
     documents: Arc<RwLock<HashMap<Uri, Document>>>,
@@ -32,6 +50,12 @@ pub struct Backend {
 impl Backend {
     pub fn new(client: Client) -> Self {
         Self { client, documents: Arc::default() }
+    }
+
+    async fn control_flow_graph(&self, params: GraphParams) -> Result<GraphResponse> {
+        let documents = self.documents.read().await;
+        let document = documents.get(&params.text_document.uri).ok_or_else(|| Error::invalid_params("document is not open"))?;
+        Ok(GraphResponse { functions: cfg::graphs(document) })
     }
 
     async fn publish(&self, uri: Uri, version: Option<i32>, diagnostics: Vec<Diagnostic>) {

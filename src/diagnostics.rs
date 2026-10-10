@@ -4,8 +4,9 @@ use cranelift_codegen::isa::TargetIsa;
 use cranelift_codegen::settings::FlagsOrIsa;
 use cranelift_codegen::verifier::verify_function;
 use cranelift_reader::{ParseOptions, parse_test};
-use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity, Position, Range};
+use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity, DiagnosticTag, Position, Range};
 
+use crate::cfg;
 use crate::document::Document;
 use crate::resolve::{self, NameKind, Resolution};
 use crate::syntax::{Function, Item, Span, SyntaxError};
@@ -20,10 +21,28 @@ pub fn all(document: &Document) -> Vec<Diagnostic> {
     let mut out: Vec<Diagnostic> = file.errors.iter().map(|e| at_span(document, e, DiagnosticSeverity::ERROR)).collect();
     let severity = if syntax_clean { DiagnosticSeverity::ERROR } else { DiagnosticSeverity::WARNING };
     out.extend(resolution.problems.iter().map(|p| at_span(document, p, severity)));
+    if syntax_clean {
+        out.extend(unreachable_blocks(document));
+    }
     if syntax_clean && resolution.problems.is_empty() {
         out.extend(semantic(document, &resolution));
     }
     out
+}
+
+fn unreachable_blocks(document: &Document) -> Vec<Diagnostic> {
+    cfg::graphs(document)
+        .into_iter()
+        .flat_map(|graph| graph.blocks)
+        .filter(|block| !block.reachable)
+        .map(|block| {
+            let range = Range::new(document.position(block.span.start), document.position(block.span.end));
+            Diagnostic {
+                tags: Some(vec![DiagnosticTag::UNNECESSARY]),
+                ..diagnostic(range, format!("block `{}` is unreachable", block.name), DiagnosticSeverity::HINT)
+            }
+        })
+        .collect()
 }
 
 fn at_span(document: &Document, error: &SyntaxError, severity: DiagnosticSeverity) -> Diagnostic {
