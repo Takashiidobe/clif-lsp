@@ -1,0 +1,28 @@
+; mode: lsp
+; lsp: open
+; lsp: folding
+; lsp: select 4:13
+; lsp: select 2:6
+; lsp: select 6:15
+; lsp: select 3:10
+; check: folding
+; nextln: 0-2 comment
+; nextln: 3-9 region
+; nextln: 5-7 region
+; nextln: 8-9 region
+; not: 6-6
+; check: select 4:13 -> 4:10-4:23 4:4-4:25 3:0-10:1 0:0-10:1
+; nextln: select 2:6 -> 2:2-2:7 0:0-10:1
+; nextln: select 6:15 -> 6:14-6:16 6:4-6:20 5:0-7:13 3:0-10:1 0:0-10:1
+; nextln: select 3:10 -> 3:9-3:11 3:0-10:1 0:0-10:1
+; one
+; two
+; three
+function %f(i32) -> i32 {
+    ss0 = explicit_slot 4
+block0(v0: i32):
+    v1 = iadd v0, v0 ; trailing
+    return v1
+block1:
+    return v0
+}

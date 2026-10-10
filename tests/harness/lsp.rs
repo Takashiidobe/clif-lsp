@@ -202,6 +202,30 @@ async fn step(client: &mut Client, source: &str, command: &str) -> Result<String
             }).collect::<Vec<_>>().join(" ");
             Ok(format!("signature {rest} -> {label} | {shown}"))
         }
+        "folding" => {
+            let response = client.request("textDocument/foldingRange", json!({"textDocument": client.text_document()})).await?;
+            let ranges: Value = serde_json::from_str(&response).map_err(|_| response.clone())?;
+            let mut out = String::from("folding");
+            for r in ranges.as_array().into_iter().flatten() {
+                out.push_str(&format!("\n{}-{} {}", r["startLine"], r["endLine"], r["kind"].as_str().unwrap_or("-")));
+            }
+            Ok(out)
+        }
+        "select" => {
+            let (line, col) = rest.split_once(':').ok_or("expected `select L:C`")?;
+            let position = json!({"line": line.parse::<u32>().map_err(|e| e.to_string())?, "character": col.parse::<u32>().map_err(|e| e.to_string())?});
+            let params = json!({"textDocument": client.text_document(), "positions": [position]});
+            let response = client.request("textDocument/selectionRange", params).await?;
+            let mut node: Value = serde_json::from_str(&response).map_err(|_| response.clone())?;
+            let mut node = node[0].take();
+            let mut out = format!("select {rest} ->");
+            while node.is_object() {
+                let r = &node["range"];
+                out.push_str(&format!(" {}:{}-{}:{}", r["start"]["line"], r["start"]["character"], r["end"]["line"], r["end"]["character"]));
+                node = node["parent"].take();
+            }
+            Ok(out)
+        }
         "await" => Ok(format!("{rest} <- {}", client.await_notification(rest).await?)),
         _ => Err(format!("unknown lsp command `{command}`")),
     }

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower_lsp_server::jsonrpc::{Error, Result};
 use tower_lsp_server::ls_types::{
-    SignatureHelp, SignatureHelpOptions, SignatureHelpParams, CodeActionOptions, CodeActionParams, CodeActionProviderCapability, CodeActionResponse, CodeActionKind, CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams,
+    FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability, SelectionRange, SelectionRangeParams, SelectionRangeProviderCapability, SignatureHelp, SignatureHelpOptions, SignatureHelpParams, CodeActionOptions, CodeActionParams, CodeActionProviderCapability, CodeActionResponse, CodeActionKind, CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams,
     InitializeResult, Diagnostic, DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, Location, OneOf,
     PrepareRenameResponse, ReferenceParams, RenameOptions, RenameParams, SemanticTokens, SemanticTokensOptions, SemanticTokensParams, SemanticTokensFullOptions, SemanticTokensResult,
     SemanticTokensServerCapabilities, TextDocumentPositionParams, TextEdit, WorkspaceEdit, ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
@@ -17,6 +17,7 @@ use crate::diagnostics;
 use crate::document::Document;
 use crate::hover;
 use crate::navigation;
+use crate::ranges;
 use crate::semantic;
 use crate::signature;
 use crate::symbols;
@@ -62,6 +63,8 @@ impl LanguageServer for Backend {
                     retrigger_characters: Some(vec![",".into()]),
                     work_done_progress_options: Default::default(),
                 }),
+                folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
+                selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
@@ -130,6 +133,17 @@ impl LanguageServer for Backend {
         let at = params.text_document_position_params;
         let documents = self.documents.read().await;
         Ok(documents.get(&at.text_document.uri).and_then(|d| signature::at(d, at.position)))
+    }
+
+    async fn folding_range(&self, params: FoldingRangeParams) -> Result<Option<Vec<FoldingRange>>> {
+        let documents = self.documents.read().await;
+        Ok(documents.get(&params.text_document.uri).map(ranges::folding))
+    }
+
+    async fn selection_range(&self, params: SelectionRangeParams) -> Result<Option<Vec<SelectionRange>>> {
+        let documents = self.documents.read().await;
+        let found = documents.get(&params.text_document.uri);
+        Ok(found.map(|d| params.positions.iter().map(|p| ranges::selection(d, *p)).collect()))
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {

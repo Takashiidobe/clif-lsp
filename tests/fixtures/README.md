@@ -27,4 +27,6 @@ Diagnostics policy (`diagnostics::all`): parser errors are errors. Name-resoluti
 
 `signature L:C` requests signature help and prints `signature L:C -> <label> | <parameters>` with the active parameter in brackets, or `(none)`.
 
+`folding` prints `folding` then one `START-END kind` line per folding range. `select L:C` prints the selection chain from the innermost range outward as `L:C-L:C` entries.
+
 `tokens` requests full semantic tokens and prints `tokens` followed by one `L:C <type> <text>` line per token, decoded with the legend from `initialize`.
