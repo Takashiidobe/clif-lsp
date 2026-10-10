@@ -206,9 +206,8 @@ For `tests/fixtures/analysis/diamond.clif`, `:ClifGraphImage` opens this:
 
 `:ClifRegalloc [function]` shows where the register allocator put each value:
 the totals and the per-value assignments in a scratch buffer, and the block
-graph drawn as an image, like `:ClifGraphImage`. Spills are red, reloads green
-and moves yellow. It needs Graphviz and the same image setup. Without `dot` you
-get the tables only.
+graph drawn as an image. Spills are red, reloads green and moves yellow. It
+needs Graphviz. Without `dot` you get the tables only.
 
 ```lua
 vim.api.nvim_create_user_command('ClifRegalloc', function(o)
@@ -224,18 +223,25 @@ vim.api.nvim_create_user_command('ClifRegalloc', function(o)
         table.insert(out, '')
       elseif s.kind == 'dot' and vim.fn.executable('dot') == 1 then
         local png = vim.fn.tempname() .. '.png'
-        local done = vim.system({ 'dot', '-Tpng', '-o', png }, { stdin = s.dot }):wait()
-        if done.code == 0 then
+        local done = vim.system({ 'dot', '-Tpng', '-Gdpi=150', '-o', png }, { stdin = s.dot }):wait()
+        if done.code ~= 0 then
+          vim.notify(done.stderr, vim.log.levels.ERROR)
+        elseif o.bang then
           vim.cmd('split ' .. vim.fn.fnameescape(png))
         else
-          vim.notify(done.stderr, vim.log.levels.ERROR)
+          vim.ui.open(png)
         end
       end
     end
     return table.concat(out, '\n')
   end)
-end, { nargs = '?' })
+end, { nargs = '?', bang = true })
 ```
+
+The graph opens in your system image viewer (`vim.ui.open`, so `xdg-open` on
+Linux), where you can zoom and scroll. A function with many instructions makes
+a tall block that is unreadable when squeezed into a split. `:ClifRegalloc!`
+opens it in a split inside the editor instead, which suits short functions.
 
 The value numbers are those of the optimized function, so they can differ from
 the file. See the `regalloc` view in [custom requests](requests.md#clifview).
