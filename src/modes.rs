@@ -27,7 +27,7 @@ pub fn render(mode: &str, input: &Input) -> Result<String, String> {
         "syntax-tree" => Ok(render_syntax_tree(input.source)),
         "names" => Ok(render_names(&strip_directives(input.source))),
         "opcodes" => Ok(render_opcodes(&strip_directives(input.source))),
-        "view" => Ok(render_views(input)),
+        "view" => render_views(input),
         "source" => Ok(strip_directives(input.source)),
         _ => Err(format!("unknown mode `{mode}`")),
     }
@@ -279,19 +279,23 @@ fn render_document(input: &Input) -> Result<String, String> {
     Ok(out)
 }
 
-fn render_views(input: &Input) -> String {
+fn render_views(input: &Input) -> Result<String, String> {
     let document = Document::new(&plain_text(input.source));
     let mut out = String::new();
     for query in input.queries.iter().filter(|q| q.kind == "view") {
-        let (view, function) = query.args.split_once(char::is_whitespace).map_or((query.args.as_str(), None), |(v, f)| (v, Some(f.trim())));
+        let (view, rest) = query.args.split_once(char::is_whitespace).unwrap_or((query.args.as_str(), ""));
+        let rest = rest.trim();
+        let (function, json) = if rest.starts_with('%') { rest.split_once(char::is_whitespace).unwrap_or((rest, "")) } else { ("", rest) };
+        let function = (!function.is_empty()).then_some(function);
+        let args = if json.trim().is_empty() { serde_json::Value::Null } else { serde_json::from_str(json.trim()).map_err(|e| format!("bad view args: {e}"))? };
         out.push_str(&format!("view {}\n", query.args));
-        match crate::view::render(&document, view, function) {
+        match crate::view::render(&document, view, function, &args) {
             Ok(rendered) => out.push_str(&serde_json::to_string_pretty(&rendered).unwrap()),
             Err(message) => out.push_str(&format!("error: {message}")),
         }
         out.push('\n');
     }
-    out
+    Ok(out)
 }
 
 fn render_format(input: &Input) -> Result<String, String> {

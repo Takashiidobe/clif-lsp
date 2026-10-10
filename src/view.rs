@@ -1,7 +1,10 @@
 use serde::Serialize;
+use serde_json::Value;
 
+use crate::analysis::{self, FunctionAnalysis};
 use crate::cfg;
 use crate::document::Document;
+use crate::stages::{self, Stage};
 
 pub const SCHEMA: u32 = 1;
 
@@ -30,21 +33,27 @@ pub struct TreeNode {
     pub children: Vec<TreeNode>,
 }
 
-const VIEWS: [&str; 1] = ["cfg"];
+const VIEWS: [&str; 3] = ["cfg", "analysis", "stage"];
 
-pub fn render(document: &Document, view: &str, function: Option<&str>) -> Result<View, String> {
+pub fn render(document: &Document, view: &str, function: Option<&str>, args: &Value) -> Result<View, String> {
     match view {
         "cfg" => cfg_view(document, function),
+        "analysis" => analysis_view(document, function),
+        "stage" => stage_view(document, function, args),
         _ => Err(format!("unknown view `{view}`, expected one of: {}", VIEWS.join(", "))),
+    }
+}
+
+fn pick<'a, T>(items: &'a [T], name: impl Fn(&T) -> &str, function: Option<&str>) -> Result<&'a T, String> {
+    match function {
+        Some(wanted) => items.iter().find(|item| name(item) == wanted).ok_or_else(|| format!("no function `{wanted}`")),
+        None => items.first().ok_or_else(|| "the file has no functions".to_owned()),
     }
 }
 
 fn cfg_view(document: &Document, function: Option<&str>) -> Result<View, String> {
     let graphs = cfg::graphs(document);
-    let graph = match function {
-        Some(wanted) => graphs.iter().find(|g| g.name == wanted).ok_or_else(|| format!("no function `{wanted}`"))?,
-        None => graphs.first().ok_or("the file has no functions")?,
-    };
+    let graph = pick(&graphs, |g| &g.name, function)?;
     let rows = graph
         .blocks
         .iter()
@@ -66,5 +75,61 @@ fn cfg_view(document: &Document, function: Option<&str>) -> Result<View, String>
                 rows,
             },
         ],
+    })
+}
+
+fn analysis_view(document: &Document, function: Option<&str>) -> Result<View, String> {
+    let all = analysis::analyze(document);
+    let analysis = pick(&all, |a| &a.name, function)?;
+    let blocks = analysis
+        .blocks
+        .iter()
+        .map(|b| vec![b.name.clone(), b.immediate_dominator.clone().unwrap_or_default(), b.predecessors.join(", ")])
+        .collect();
+    let values = analysis
+        .values
+        .iter()
+        .map(|v| vec![v.name.clone(), v.defined_in.clone(), v.live_in.join(", "), v.live_out.join(", ")])
+        .collect();
+    let columns = |names: &[&str]| names.iter().map(|n| (*n).to_owned()).collect();
+    Ok(View {
+        schema: SCHEMA,
+        view: "analysis".to_owned(),
+        function: analysis.name.clone(),
+        title: format!("Analysis of {}", analysis.name),
+        sections: vec![
+            Section::Tree { title: "Dominator tree".to_owned(), nodes: dominator_tree(analysis) },
+            Section::Table { title: "Blocks".to_owned(), columns: columns(&["block", "immediate dominator", "predecessors"]), rows: blocks },
+            Section::Table { title: "Values".to_owned(), columns: columns(&["value", "defined in", "live in", "live out"]), rows: values },
+        ],
+    })
+}
+
+fn dominator_tree(analysis: &FunctionAnalysis) -> Vec<TreeNode> {
+    fn build(analysis: &FunctionAnalysis, name: &str) -> TreeNode {
+        let children = analysis
+            .blocks
+            .iter()
+            .filter(|b| b.immediate_dominator.as_deref() == Some(name))
+            .map(|b| build(analysis, &b.name))
+            .collect();
+        TreeNode { label: name.to_owned(), children }
+    }
+    analysis.blocks.first().map(|entry| build(analysis, &entry.name)).into_iter().collect()
+}
+
+fn stage_view(document: &Document, function: Option<&str>, args: &Value) -> Result<View, String> {
+    let name = args
+        .get("stage")
+        .and_then(Value::as_str)
+        .ok_or("the stage view needs a `stage` argument, one of: parsed, optimized, vcode")?;
+    let stage = Stage::parse(name).ok_or_else(|| format!("unknown stage `{name}`"))?;
+    let rendered = stages::render(document, function, stage)?;
+    Ok(View {
+        schema: SCHEMA,
+        view: "stage".to_owned(),
+        title: format!("{name} {}", rendered.function),
+        function: rendered.function,
+        sections: vec![Section::Text { title: name.to_owned(), text: rendered.text }],
     })
 }

@@ -1,0 +1,37 @@
+; mode: view, lsp
+; ^ view stage {"stage":"parsed"}
+; ^ view stage %g {"stage":"optimized"}
+; ^ view stage
+; ^ view stage {"stage":"nope"}
+; ^ view stage %missing {"stage":"parsed"}
+; lsp: open
+; lsp: request clif/view {"view":"stage","function":"%f","args":{"stage":"vcode"}}
+; check: view stage {"stage":"parsed"}
+; check:   "function": "%f",
+; nextln:   "title": "parsed %f",
+; check:       "kind": "text",
+; nextln:       "title": "parsed",
+; nextln:       "text": "function %f(i32) -> i32 fast {\nblock0(v0: i32):\n    v1 = iconst.i32 0\n    v2 = iadd v0, v1  ; v1 = 0\n    return v2\n}\n"
+; check: view stage %g {"stage":"optimized"}
+; check:       "text": "function %g(i32) -> i32 fast {\nblock0(v0: i32):\n    return v0\n}\n"
+; check: view stage
+; nextln: error: the stage view needs a `stage` argument, one of: parsed, optimized, vcode
+; check: view stage {"stage":"nope"}
+; nextln: error: unknown stage `nope`
+; check: view stage %missing {"stage":"parsed"}
+; nextln: error: no function `%missing`
+; check: clif/view -> {"function":"%f","schema":1,"sections":[{"kind":"text","text":"  pushq %rbp\n  movq %rsp, %rbp\nblock0:\n  movq %rdi, %rax\n  movq %rbp, %rsp\n  popq %rbp\n  retq\n","title":"vcode"}],"title":"vcode %f","view":"stage"}
+set opt_level=speed
+target x86_64
+function %f(i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst.i32 0
+    v2 = iadd v0, v1
+    return v2
+}
+function %g(i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst.i32 0
+    v2 = iadd v0, v1
+    return v2
+}

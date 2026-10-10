@@ -60,6 +60,7 @@ Params:
 - `view`: the view name. Currently `cfg`.
 - `function`: the function name, for example `%main`. Defaults to the first
   function in the file.
+- `args`: an optional object of view-specific arguments.
 
 Result: `{ schema, view, function, title, sections }`.
 
@@ -85,5 +86,12 @@ Views:
 
 - `cfg`: a `dot` section with the control flow graph and a `table` section with
   one row per block (`block`, `successors`, `reachable`).
+- `analysis`: a `tree` section with the dominator tree rooted at the entry
+  block, a `table` of blocks (`block`, `immediate dominator`, `predecessors`)
+  and a `table` of values (`value`, `defined in`, `live in`, `live out`).
+- `stage`: one `text` section with the function after a pipeline stage. Needs
+  `args.stage`, one of the `clif/stage` stages, and has the same `target` line
+  requirement.
 
-An unknown view or function fails with an invalid-params error.
+An unknown view, function or stage, or a missing required argument, fails with
+an invalid-params error.

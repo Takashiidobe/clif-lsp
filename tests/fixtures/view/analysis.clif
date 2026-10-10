@@ -1,0 +1,46 @@
+; mode: view, lsp
+; ^ view analysis
+; ^ view analysis %g
+; lsp: open
+; lsp: request clif/view {"view":"analysis"}
+; check: view analysis
+; check:   "title": "Analysis of %f",
+; check:       "kind": "tree",
+; nextln:       "title": "Dominator tree",
+; nextln:       "nodes": [
+; nextln:         {
+; nextln:           "label": "block0",
+; nextln:           "children": [
+; check:               "label": "block1",
+; nextln:               "children": []
+; check:               "label": "block2",
+; check:               "label": "block3",
+; check:       "title": "Blocks",
+; check:           "block3",
+; nextln:           "block0",
+; nextln:           "block1, block2"
+; check:       "title": "Values",
+; check:           "v1",
+; nextln:           "block0",
+; nextln:           "block1",
+; nextln:           "block0"
+; check: view analysis %g
+; check: "title": "Analysis of %g"
+; check: clif/view -> {"function":"%f","schema":1,"sections":[{"kind":"tree","nodes":[{"children":[{"children":[],"label":"block1"}
+function %f(i32, i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = iadd v0, v1
+    brif v0, block1, block2
+block1:
+    v3 = iadd v2, v1
+    jump block3(v3)
+block2:
+    jump block3(v2)
+block3(v4: i32):
+    v5 = iadd v4, v0
+    return v5
+}
+function %g() {
+block0:
+    return
+}

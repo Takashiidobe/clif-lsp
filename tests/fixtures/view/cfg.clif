@@ -34,9 +34,9 @@
 ; check: view cfg %missing
 ; nextln: error: no function `%missing`
 ; check: view nope
-; nextln: error: unknown view `nope`, expected one of: cfg
+; nextln: error: unknown view `nope`, expected one of: cfg, analysis, stage
 ; check: clif/view -> {"function":"%g","schema":1,"sections":[{"dot":"digraph \"%g\" {\n    \"block0\";\n}\n","kind":"dot","title":"Graph"},{"columns":["block","successors","reachable"],"kind":"table","rows":[["block0","","yes"]],"title":"Blocks"}],"title":"Control flow of %g","view":"cfg"}
-; nextln: clif/view -> error -32602 unknown view `nope`, expected one of: cfg
+; nextln: clif/view -> error -32602 unknown view `nope`, expected one of: cfg, analysis, stage
 function %f(i32) {
 block0(v0: i32):
     brif v0, block1, block2

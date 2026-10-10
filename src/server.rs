@@ -75,6 +75,8 @@ pub struct ViewParams {
     pub text_document: TextDocumentIdentifier,
     pub view: String,
     pub function: Option<String>,
+    #[serde(default)]
+    pub args: serde_json::Value,
 }
 
 pub struct Backend {
@@ -110,7 +112,7 @@ impl Backend {
     async fn view(&self, params: ViewParams) -> Result<view::View> {
         let documents = self.documents.read().await;
         let document = documents.get(&params.text_document.uri).ok_or_else(|| Error::invalid_params("document is not open"))?;
-        view::render(document, &params.view, params.function.as_deref()).map_err(Error::invalid_params)
+        view::render(document, &params.view, params.function.as_deref(), &params.args).map_err(Error::invalid_params)
     }
 
     async fn publish(&self, uri: Uri, version: Option<i32>, diagnostics: Vec<Diagnostic>) {
