@@ -137,6 +137,16 @@ async fn step(client: &mut Client, source: &str, command: &str) -> Result<String
             }
             Ok(format!("{method} -> {}", client.request(method, params).await?))
         }
+        "complete" => {
+            let (line, col) = rest.split_once(':').ok_or("expected `complete L:C`")?;
+            let position = json!({"line": line.parse::<u32>().map_err(|e| e.to_string())?, "character": col.parse::<u32>().map_err(|e| e.to_string())?});
+            let params = json!({"textDocument": client.text_document(), "position": position});
+            let response = client.request("textDocument/completion", params).await?;
+            let items: Value = serde_json::from_str(&response).map_err(|_| response.clone())?;
+            let labels: Vec<&str> = items.as_array().map_or(Vec::new(), |a| a.iter().filter_map(|i| i["label"].as_str()).collect());
+            let shown = if labels.is_empty() { "(none)".to_owned() } else { labels.join(" ") };
+            Ok(format!("complete {rest} -> {shown}"))
+        }
         "await" => Ok(format!("{rest} <- {}", client.await_notification(rest).await?)),
         _ => Err(format!("unknown lsp command `{command}`")),
     }

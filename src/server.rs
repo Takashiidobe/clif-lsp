@@ -4,12 +4,13 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower_lsp_server::jsonrpc::{Error, Result};
 use tower_lsp_server::ls_types::{
-    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams,
+    CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams,
     InitializeResult, Diagnostic, DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, Location, OneOf,
     PrepareRenameResponse, ReferenceParams, RenameOptions, RenameParams, TextDocumentPositionParams, TextEdit, WorkspaceEdit, ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
 };
 use tower_lsp_server::{Client, LanguageServer};
 
+use crate::completion;
 use crate::diagnostics;
 use crate::document::Document;
 use crate::hover;
@@ -37,6 +38,10 @@ impl LanguageServer for Backend {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::INCREMENTAL)),
                 document_symbol_provider: Some(OneOf::Left(true)),
+                completion_provider: Some(CompletionOptions {
+                    trigger_characters: Some(vec![".".into(), "%".into()]),
+                    ..CompletionOptions::default()
+                }),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
@@ -80,6 +85,13 @@ impl LanguageServer for Backend {
         let documents = self.documents.read().await;
         let found = documents.get(&params.text_document.uri).map(symbols::document);
         Ok(found.map(DocumentSymbolResponse::Nested))
+    }
+
+    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+        let at = params.text_document_position;
+        let documents = self.documents.read().await;
+        let items = documents.get(&at.text_document.uri).map(|d| completion::at(d, at.position));
+        Ok(items.map(CompletionResponse::Array))
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {

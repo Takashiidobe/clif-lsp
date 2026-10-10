@@ -1,3 +1,4 @@
+pub mod completion;
 pub mod diagnostics;
 pub mod document;
 pub mod hover;

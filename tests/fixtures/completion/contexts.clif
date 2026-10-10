@@ -1,0 +1,40 @@
+; mode: lsp
+; lsp: open
+; lsp: complete 3:9
+; lsp: complete 3:14
+; lsp: complete 4:14
+; lsp: complete 5:14
+; lsp: complete 6:18
+; lsp: complete 7:15
+; lsp: complete 8:13
+; lsp: complete 9:22
+; lsp: complete 10:0
+; lsp: complete 0:19
+; lsp: complete 2:12
+; check: complete 3:9 -> atomic_cas
+; check: iadd
+; check: return
+; nextln: complete 3:14 -> i8 i16 i32 i64 i128 f16 f32 f64 f128
+; check: complete 4:14 -> eq ne slt sge sgt sle ult uge ugt ule %f ss0 block0 v0 v1 v2 v3 v4 v5 block1
+; not: uno
+; check: complete 5:14 -> ord uno eq ne one ueq lt le gt ge ult ule ugt uge %f ss0 block0 v0
+; check: complete 6:18 -> notrap aligned readonly little big can_move %f ss0 block0 v0
+; check: complete 7:15 -> stk_ovf heap_oob int_ovf int_divz bad_toint %f ss0 block0 v0
+; check: complete 8:13 -> %f ss0 block0 v0 v1 v2 v3 v4 v5 block1
+; nextln: complete 9:22 -> (none)
+; nextln: complete 10:0 -> (none)
+; nextln: complete 0:19 -> i8 i16 i32 i64 i128 f16 f32 f64 f128
+; nextln: complete 2:12 -> i8 i16 i32 i64 i128 f16 f32 f64 f128
+function %f(i32) -> i32 {
+    ss0 = explicit_slot 8
+block0(v0: i32):
+    v1 = iadd.i32 v0, v0
+    v2 = icmp eq v1, v0
+    v3 = fcmp eq v1, v0
+    v4 = load.i32 notrap v0
+    trapnz v1, user1
+    brif v1, block0, block1
+    v5 = iadd v1, v1 ; v
+block1:
+    return v1
+}

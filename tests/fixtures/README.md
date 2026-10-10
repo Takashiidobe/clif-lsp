@@ -20,3 +20,5 @@ Whenever the reader accepts a file, name resolution must report no problems for 
 `await <method>` waits for a server notification (for example `textDocument/publishDiagnostics`) and prints `<method> <- <json params>`. Notifications that arrive earlier are queued and returned in order.
 
 Diagnostics policy (`diagnostics::all`): parser errors are errors. Name-resolution problems are warnings while parser errors exist and errors otherwise. Only when both are empty do `cranelift-reader` and then the verifier run; a reader error is reported on its whole line, verifier errors on the instruction, block, or declaration they name. The reader stops at its first error, so verifier errors appear only for files it accepts.
+
+`complete L:C` requests completion at that position and prints `complete L:C -> <labels>` in server order, or `(none)`.
