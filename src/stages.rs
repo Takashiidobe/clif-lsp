@@ -1,5 +1,5 @@
-use cranelift_codegen::{CodegenError, Context};
-use cranelift_codegen::ir::Function;
+use cranelift_codegen::{CodegenError, CompiledCode, Context};
+use cranelift_codegen::ir::{Function, Inst, SourceLoc};
 use cranelift_codegen::settings::{self, Configurable, OptLevel};
 use cranelift_codegen::control::ControlPlane;
 use cranelift_codegen::isa::{self, OwnedTargetIsa, TargetIsa};
@@ -84,6 +84,41 @@ pub fn compile(function: &Function, isa: &dyn TargetIsa) -> Result<Compiled, Str
     let compiled = context.compile(isa, &mut ControlPlane::default()).map_err(|e| describe(&e.inner))?;
     let vcode = compiled.vcode.clone().ok_or("the backend produced no vcode")?;
     Ok(Compiled { vcode, code_bytes: compiled.code_buffer().len() })
+}
+
+pub struct Tagged {
+    pub context: Context,
+    pub insts: Vec<Inst>,
+    pub compiled: CompiledCode,
+    pub regalloc: regalloc2::Ctx,
+}
+
+pub fn compile_tagged(target: &Target, prepare: impl FnOnce(&mut Context, &[Inst])) -> Result<Tagged, String> {
+    let isa = &*target.isa;
+    let mut plane = ControlPlane::default();
+    let mut context = Context::for_function(target.function.clone());
+    context.optimize(isa, &mut plane).map_err(|e| describe(&e))?;
+    let insts: Vec<Inst> = context.func.layout.blocks().flat_map(|block| context.func.layout.block_insts(block)).collect();
+    for (index, &inst) in insts.iter().enumerate() {
+        context.func.set_srcloc(inst, SourceLoc::new(index as u32 + 1));
+    }
+    prepare(&mut context, &insts);
+    let mut regalloc = regalloc2::Ctx::default();
+    let stencil = isa.compile_function(&context.func, &context.domtree, &mut regalloc, false, &mut plane).map_err(|e| describe(&e))?;
+    let compiled = stencil.apply_params(&context.func.params);
+    Ok(Tagged { context, insts, compiled, regalloc })
+}
+
+impl Tagged {
+    pub fn spans(&self) -> Vec<(u32, u32, usize)> {
+        self.compiled
+            .buffer
+            .get_srclocs_sorted()
+            .iter()
+            .filter(|s| !s.loc.is_default())
+            .map(|s| (s.start, s.end, s.loc.bits() as usize - 1))
+            .collect()
+    }
 }
 
 pub struct Snapshot {

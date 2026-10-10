@@ -1,9 +1,5 @@
-use cranelift_codegen::Context;
-use cranelift_codegen::control::ControlPlane;
-use cranelift_codegen::ir::{Inst, SourceLoc};
-
 use crate::html::{self, escape};
-use crate::stages::{self, Target};
+use crate::stages::{self, Tagged, Target};
 
 pub struct Line {
     pub offset: u64,
@@ -22,27 +18,9 @@ pub struct Report {
 
 pub fn analyze(target: &Target) -> Result<Report, String> {
     let isa = &*target.isa;
-    let mut plane = ControlPlane::default();
-    let mut context = Context::for_function(target.function.clone());
-    context.optimize(isa, &mut plane).map_err(|e| stages::describe(&e))?;
-
-    let insts: Vec<Inst> = context.func.layout.blocks().flat_map(|block| context.func.layout.block_insts(block)).collect();
-    for (index, &inst) in insts.iter().enumerate() {
-        context.func.set_srcloc(inst, SourceLoc::new(index as u32 + 1));
-    }
-
-    let stencil = isa
-        .compile_function(&context.func, &context.domtree, &mut regalloc2::Ctx::default(), false, &mut plane)
-        .map_err(|e| stages::describe(&e))?;
-    let compiled = stencil.apply_params(&context.func.params);
-
-    let spans: Vec<(u32, u32, usize)> = compiled
-        .buffer
-        .get_srclocs_sorted()
-        .iter()
-        .filter(|s| !s.loc.is_default())
-        .map(|s| (s.start, s.end, s.loc.bits() as usize - 1))
-        .collect();
+    let tagged = stages::compile_tagged(target, |_, _| {})?;
+    let spans = tagged.spans();
+    let Tagged { context, insts, compiled, .. } = tagged;
     let inst_at = |offset: u64| spans.iter().find(|&&(start, end, _)| u64::from(start) <= offset && offset < u64::from(end)).map(|&(_, _, inst)| inst);
 
     let capstone = isa.to_capstone().map_err(|e| format!("disassembly is not available for {}: {e}", isa.triple()))?;

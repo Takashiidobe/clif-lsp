@@ -1,10 +1,9 @@
-use cranelift_codegen::control::ControlPlane;
 use cranelift_codegen::flowgraph::ControlFlowGraph;
-use cranelift_codegen::ir::{Block, Inst, RelSourceLoc, SourceLoc, Value, ValueDef, ValueLabel, ValueLabelAssignments, ValueLabelStart};
-use cranelift_codegen::{Context, LabelValueLoc};
+use cranelift_codegen::ir::{Block, RelSourceLoc, Value, ValueDef, ValueLabel, ValueLabelAssignments, ValueLabelStart};
+use cranelift_codegen::LabelValueLoc;
 
 use crate::html::{self, escape};
-use crate::stages::{self, Target};
+use crate::stages::{self, Tagged, Target};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Event {
@@ -53,44 +52,26 @@ pub struct Report {
 
 pub fn analyze(target: &Target) -> Result<Report, String> {
     let isa = &*target.isa;
-    let mut context = Context::for_function(target.function.clone());
-    context.optimize(isa, &mut ControlPlane::default()).map_err(|e| stages::describe(&e))?;
-
-    let blocks: Vec<Block> = context.func.layout.blocks().collect();
-    let insts: Vec<Inst> = blocks.iter().flat_map(|&block| context.func.layout.block_insts(block)).collect();
-
-    context.func.collect_debug_info();
-    for (index, &inst) in insts.iter().enumerate() {
-        context.func.set_srcloc(inst, SourceLoc::new(index as u32 + 1));
-    }
-    let mut labelled: Vec<(Value, RelSourceLoc)> = Vec::new();
-    for &block in &blocks {
-        labelled.extend(context.func.dfg.block_params(block).iter().map(|&param| (param, RelSourceLoc::default())));
-    }
-    for &inst in &insts {
-        let from = context.func.stencil.srclocs[inst];
-        labelled.extend(context.func.dfg.inst_results(inst).iter().map(|&result| (result, from)));
-    }
-    if let Some(labels) = context.func.dfg.values_labels.as_mut() {
-        for (value, from) in labelled {
-            let label = ValueLabel::from_u32(value.as_u32());
-            labels.insert(value, ValueLabelAssignments::Starts(vec![ValueLabelStart { from, label }]));
+    let tagged = stages::compile_tagged(target, |context, insts| {
+        context.func.collect_debug_info();
+        let mut labelled: Vec<(Value, RelSourceLoc)> = Vec::new();
+        for block in context.func.layout.blocks() {
+            labelled.extend(context.func.dfg.block_params(block).iter().map(|&param| (param, RelSourceLoc::default())));
         }
-    }
-
-    let mut regalloc = regalloc2::Ctx::default();
-    let stencil = isa
-        .compile_function(&context.func, &context.domtree, &mut regalloc, false, &mut ControlPlane::default())
-        .map_err(|e| stages::describe(&e))?;
-    let compiled = stencil.apply_params(&context.func.params);
-
-    let spans: Vec<(u32, usize)> = compiled
-        .buffer
-        .get_srclocs_sorted()
-        .iter()
-        .filter(|s| !s.loc.is_default())
-        .map(|s| (s.start, s.loc.bits() as usize - 1))
-        .collect();
+        for &inst in insts {
+            let from = context.func.stencil.srclocs[inst];
+            labelled.extend(context.func.dfg.inst_results(inst).iter().map(|&result| (result, from)));
+        }
+        if let Some(labels) = context.func.dfg.values_labels.as_mut() {
+            for (value, from) in labelled {
+                let label = ValueLabel::from_u32(value.as_u32());
+                labels.insert(value, ValueLabelAssignments::Starts(vec![ValueLabelStart { from, label }]));
+            }
+        }
+    })?;
+    let spans: Vec<(u32, usize)> = tagged.spans().into_iter().map(|(start, _, inst)| (start, inst)).collect();
+    let Tagged { context, insts, compiled, regalloc } = tagged;
+    let blocks: Vec<Block> = context.func.layout.blocks().collect();
     let inst_at = |offset: u32| {
         let after = spans.partition_point(|&(start, _)| start <= offset);
         spans.get(after.saturating_sub(1)).map_or(0, |&(_, inst)| inst)
