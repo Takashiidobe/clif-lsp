@@ -126,6 +126,28 @@ bd prime                # Refresh Beads context
 **Architecture in one line:** issues live in a local Dolt DB; sync uses `refs/dolt/data` on your git remote; `.beads/issues.jsonl` is a passive export. See https://github.com/gastownhall/beads/blob/main/docs/core-concepts/sync-concepts.md for details and anti-patterns.
 <!-- END BEADS CODEX SETUP -->
 
+## Working Style
+
+The user reads edits as they happen, so make them visible.
+
+- Change files with the Edit and Write tools, not with `sed`, `python`, `cat <<EOF` or other shell scripts run through Bash. A shell edit hides the diff, and the user cannot review what changed.
+- Use the LSP tool for code navigation (definitions, references, hover, diagnostics, symbols) before falling back to grep.
+- Keep Bash calls to one small step each, with a description that says what the step is for. Do not chain an edit, a build, a test run and a commit into one command.
+- Before a multi-step change, say in a sentence or two what is about to happen.
+
+## Build & Test
+
+```bash
+cargo build
+cargo run -p xtask -- gen-opcodes   # regenerate src/tables/opcodes.rs from cranelift 0.136.2
+cargo run -p xtask -- gen-types     # regenerate src/tables/types.rs and codes.rs
+cargo test --test fixtures   # runs every tests/fixtures/**/*.clif through its mode/check directives
+```
+
+## Architecture Overview
+
+Tolerant lexer/parser for Cranelift IR (CLIF) text, a tower-lsp-server front end, and opcode tables generated from cranelift 0.136.2.
+
 ## Conventions & Patterns
 
 ### Commits

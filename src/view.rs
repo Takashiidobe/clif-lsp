@@ -162,7 +162,7 @@ fn allocators_view(document: &Document, function: Option<&str>) -> Result<View, 
     let mut results = Vec::new();
     for algorithm in ALGORITHMS {
         let isa = stages::with_algorithm(&*target.isa, algorithm)?;
-        let compiled = stages::compile(&target.function, &*isa).map_err(|e| format!("{algorithm}: {e}"))?;
+        let compiled = stages::compile(&target.function, &*isa).map_err(|e| if results.is_empty() { e } else { format!("{algorithm}: {e}") })?;
         results.push(compiled);
     }
     let counts: Vec<VcodeCounts> = results.iter().map(|c| count_vcode(&c.vcode)).collect();

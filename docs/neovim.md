@@ -105,6 +105,33 @@ end, {})
 vim.api.nvim_create_user_command('ClifAnalysis', function()
   request('clif/analysis', {}, vim.inspect)
 end, {})
+
+vim.api.nvim_create_user_command('ClifView', function(o)
+  local args = o.fargs[3] and vim.json.decode(o.fargs[3]) or nil
+  request('clif/view', { view = o.fargs[1], ['function'] = o.fargs[2], args = args },
+    function(v)
+      local out = { v.title, '' }
+      for _, s in ipairs(v.sections) do
+        table.insert(out, '== ' .. s.title .. ' ==')
+        if s.kind == 'text' then
+          table.insert(out, s.text)
+        elseif s.kind == 'diff' then
+          table.insert(out, s.text)
+        elseif s.kind == 'dot' then
+          table.insert(out, s.dot)
+        elseif s.kind == 'table' then
+          table.insert(out, table.concat(s.columns, '\t'))
+          for _, row in ipairs(s.rows) do
+            table.insert(out, table.concat(row, '\t'))
+          end
+        else
+          table.insert(out, vim.inspect(s))
+        end
+        table.insert(out, '')
+      end
+      return table.concat(out, '\n')
+    end)
+end, { nargs = '+' })
 ```
 
 - `:ClifStage [stage] [function]` shows `parsed`, `optimized` (the default), or
@@ -118,6 +145,11 @@ end, {})
   It draws every function, or only the one you name, as in
   `:ClifGraphImage %main`. See [Drawing the graph](#drawing-the-graph).
 - `:ClifAnalysis` shows dominators and liveness as a Lua table.
+- `:ClifView view [function] [args]` shows a `clif/view` view: `cfg`,
+  `analysis`, `stage` or `allocators`. The function defaults to the first one.
+  `args` is a JSON object and needs the function before it, as in
+  `:ClifView stage %main {"stage":"vcode"}`. `:ClifView allocators` compares
+  the two register allocators.
 
 ## Drawing the graph
 

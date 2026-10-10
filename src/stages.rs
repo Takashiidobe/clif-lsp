@@ -1,4 +1,4 @@
-use cranelift_codegen::Context;
+use cranelift_codegen::{CodegenError, Context};
 use cranelift_codegen::ir::Function;
 use cranelift_codegen::settings::{self, Configurable};
 use cranelift_codegen::control::ControlPlane;
@@ -71,10 +71,17 @@ pub struct Compiled {
     pub code_bytes: usize,
 }
 
+pub fn describe(error: &CodegenError) -> String {
+    match error {
+        CodegenError::Verifier(errors) => format!("verifier errors:\n{}", errors.to_string().trim_end()),
+        other => other.to_string(),
+    }
+}
+
 pub fn compile(function: &Function, isa: &dyn TargetIsa) -> Result<Compiled, String> {
     let mut context = Context::for_function(function.clone());
     context.set_disasm(true);
-    let compiled = context.compile(isa, &mut ControlPlane::default()).map_err(|e| format!("{:?}", e.inner))?;
+    let compiled = context.compile(isa, &mut ControlPlane::default()).map_err(|e| describe(&e.inner))?;
     let vcode = compiled.vcode.clone().ok_or("the backend produced no vcode")?;
     Ok(Compiled { vcode, code_bytes: compiled.code_buffer().len() })
 }
@@ -99,7 +106,7 @@ pub fn render(document: &Document, function: Option<&str>, stage: Stage) -> Resu
         Stage::Parsed => ir.to_string(),
         Stage::Optimized => {
             let mut context = Context::for_function(ir);
-            context.optimize(&*isa, &mut ControlPlane::default()).map_err(|e| format!("{e:?}"))?;
+            context.optimize(&*isa, &mut ControlPlane::default()).map_err(|e| describe(&e))?;
             context.func.to_string()
         }
         Stage::Vcode => compile(&ir, &*isa)?.vcode,
