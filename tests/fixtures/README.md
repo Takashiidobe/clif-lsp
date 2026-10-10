@@ -34,3 +34,7 @@ Diagnostics policy (`diagnostics::all`): parser errors are errors. Name-resoluti
 `hints L:C-L:C` requests inlay hints for the range and prints `L:C label (kind N)` per hint (kind 1 is a type hint, 2 a parameter hint), or `(none)`.
 
 `tokens` requests full semantic tokens and prints `tokens` followed by one `L:C <type> <text>` line per token, decoded with the legend from `initialize`.
+
+`format` mode applies `textDocument/formatting` to the file with directive and caret lines removed and prints every resulting line wrapped in `|...|`, so indentation and trailing whitespace are visible; a final `||` line means the output ends with a newline. A `; ^ range L:C-L:C` caret (plain-text coordinates) formats only that range instead.
+
+The harness also formats every fixture and every prefix cut at a space, comma, brace or newline: tokens must be unchanged, formatting twice must equal formatting once, and where `cranelift-reader` accepts the file it must see the same functions afterwards.

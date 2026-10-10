@@ -1,0 +1,14 @@
+; mode: format
+; check: |function %f() {|
+; nextln: |   block0:|
+; nextln: |    v0 = iconst.i32 1|
+; nextln: |        v1 =   iadd v0,v0|
+; nextln: |   return v1|
+; nextln: |}|
+; ^ range 2:0-2:5
+function %f() {
+   block0:
+     v0   =iconst.i32 1
+        v1 =   iadd v0,v0
+   return v1
+}

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower_lsp_server::jsonrpc::{Error, Result};
 use tower_lsp_server::ls_types::{
-    CallHierarchyIncomingCall, CallHierarchyIncomingCallsParams, CallHierarchyItem, CallHierarchyOutgoingCall, CallHierarchyOutgoingCallsParams, CallHierarchyPrepareParams, CallHierarchyServerCapability, DocumentHighlight, DocumentHighlightKind, DocumentHighlightParams, FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability, SelectionRange, SelectionRangeParams, SelectionRangeProviderCapability, SignatureHelp, SignatureHelpOptions, SignatureHelpParams, CodeActionOptions, CodeActionParams, CodeActionProviderCapability, CodeActionResponse, CodeActionKind, CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams,
+    CallHierarchyIncomingCall, CallHierarchyIncomingCallsParams, CallHierarchyItem, CallHierarchyOutgoingCall, CallHierarchyOutgoingCallsParams, CallHierarchyPrepareParams, CallHierarchyServerCapability, DocumentHighlight, DocumentHighlightKind, DocumentFormattingParams, DocumentHighlightParams, DocumentRangeFormattingParams, FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability, SelectionRange, SelectionRangeParams, SelectionRangeProviderCapability, SignatureHelp, SignatureHelpOptions, SignatureHelpParams, CodeActionOptions, CodeActionParams, CodeActionProviderCapability, CodeActionResponse, CodeActionKind, CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams,
     InitializeResult, InlayHint, InlayHintParams, Diagnostic, DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, Location, OneOf,
     PrepareRenameResponse, ReferenceParams, RenameOptions, RenameParams, SemanticTokens, SemanticTokensOptions, SemanticTokensParams, SemanticTokensFullOptions, SemanticTokensResult,
     SemanticTokensServerCapabilities, TextDocumentPositionParams, TextEdit, WorkspaceEdit, ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
@@ -20,6 +20,7 @@ use crate::cfg;
 use crate::completion;
 use crate::diagnostics;
 use crate::document::Document;
+use crate::formatting;
 use crate::hover;
 use crate::inlay;
 use crate::navigation;
@@ -132,6 +133,8 @@ impl LanguageServer for Backend {
                 document_highlight_provider: Some(OneOf::Left(true)),
                 call_hierarchy_provider: Some(CallHierarchyServerCapability::Simple(true)),
                 inlay_hint_provider: Some(OneOf::Left(true)),
+                document_formatting_provider: Some(OneOf::Left(true)),
+                document_range_formatting_provider: Some(OneOf::Left(true)),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
@@ -246,6 +249,16 @@ impl LanguageServer for Backend {
     async fn inlay_hint(&self, params: InlayHintParams) -> Result<Option<Vec<InlayHint>>> {
         let documents = self.documents.read().await;
         Ok(documents.get(&params.text_document.uri).map(|d| inlay::within(d, params.range)))
+    }
+
+    async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
+        let documents = self.documents.read().await;
+        Ok(documents.get(&params.text_document.uri).map(|d| formatting::edits(d, None)))
+    }
+
+    async fn range_formatting(&self, params: DocumentRangeFormattingParams) -> Result<Option<Vec<TextEdit>>> {
+        let documents = self.documents.read().await;
+        Ok(documents.get(&params.text_document.uri).map(|d| formatting::edits(d, Some(params.range))))
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {

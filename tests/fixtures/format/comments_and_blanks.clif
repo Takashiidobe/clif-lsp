@@ -1,0 +1,28 @@
+; mode: format
+; check: |set opt_level=speed|
+; nextln: |target x86_64 has_avx|
+; nextln: |; about f|
+; nextln: ||
+; nextln: |function %f() {|
+; nextln: |; entry follows|
+; nextln: |block0:|
+; nextln: |    ; before return|
+; nextln: |    return|
+; nextln: |}|
+; nextln: ||
+
+
+  set opt_level=speed   
+target  x86_64   has_avx
+   ; about f
+
+
+
+function %f() {
+          ; entry follows
+   block0:
+; before return
+  return   
+ }
+
+

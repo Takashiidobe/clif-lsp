@@ -2,6 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+#[path = "harness/format.rs"]
+mod format;
 #[path = "harness/invariants.rs"]
 mod invariants;
 #[path = "harness/lsp.rs"]
@@ -62,6 +64,7 @@ fn queries_of(source: &str) -> Vec<Query> {
 fn run(relative: &str, path: &Path) -> Result<(), String> {
     let source = fs::read_to_string(path).map_err(|e| e.to_string())?;
     invariants::check(&source).map_err(|e| format!("invariant: {e}"))?;
+    format::check(&source).map_err(|e| format!("format: {e}"))?;
     oracle::check(relative, &source).map_err(|e| format!("oracle: {e}"))?;
     let queries = queries_of(&source);
     let input = Input { source: &source, queries: &queries };

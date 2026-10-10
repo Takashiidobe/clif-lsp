@@ -1,0 +1,13 @@
+; mode: lsp
+; lsp: open
+; lsp: request textDocument/formatting {"options":{"tabSize":4,"insertSpaces":true}}
+; lsp: request textDocument/rangeFormatting {"range":{"start":{"line":2,"character":0},"end":{"line":2,"character":3}},"options":{"tabSize":4,"insertSpaces":true}}
+; check: "documentFormattingProvider":true
+; check: "documentRangeFormattingProvider":true
+; check: textDocument/formatting -> [{"newText":"    v0 = iconst.i32 1","range":{"end":{"character":24,"line":2},"start":{"character":0,"line":2}}},{"newText":"}\n","range":{"end":{"character":1,"line":4},"start":{"character":0,"line":4}}}]
+; check: textDocument/rangeFormatting -> [{"newText":"    v0 = iconst.i32 1","range":{"end":{"character":24,"line":2},"start":{"character":0,"line":2}}}]
+function %f() {
+block0:
+      v0   =iconst.i32 1
+    return
+}

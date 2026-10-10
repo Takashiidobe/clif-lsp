@@ -1,0 +1,24 @@
+; mode: format
+; check: |function %f(i32, i32) -> i32 {|
+; nextln: |    ss0 = explicit_slot 8|
+; nextln: |block0(v0: i32, v1: i32):|
+; nextln: |    v2 = iadd v0, v1|
+; nextln: |    v3, v4 = isplit v2 ;split|
+; nextln: |    brif v3, block1(v2), block2|
+; nextln: |block1(v5: i32):|
+; nextln: |    return v5|
+; nextln: |block2:|
+; nextln: |    return v1|
+; nextln: |}|
+; nextln: ||
+function %f( i32 ,i32 )->i32{
+      ss0=explicit_slot 8
+	block0( v0:i32,v1 : i32 ) :
+v2   =   iadd v0 ,v1
+        v3,v4=isplit v2;split
+ brif v3,block1( v2 ),block2
+   block1(v5: i32):
+      return v5
+block2:
+  return v1
+          }

@@ -1,0 +1,11 @@
+; mode: format
+; check: |function %g() { }|
+; nextln: |function %h(i64) -> i64 system_v {|
+; nextln: |block0(v0: i64):|
+; nextln: |    return v0|
+; nextln: |}|
+function   %g( )   {   }
+function %h(i64)->i64 system_v {
+block0(v0:i64):
+return v0
+}

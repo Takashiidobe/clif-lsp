@@ -23,6 +23,7 @@ pub fn render(mode: &str, input: &Input) -> Result<String, String> {
         "tokens" => render_tokens(input.source),
         "resolve" => Ok(render_resolution(input.source)),
         "document" => render_document(input),
+        "format" => render_format(input),
         "syntax-tree" => Ok(render_syntax_tree(input.source)),
         "names" => Ok(render_names(&strip_directives(input.source))),
         "opcodes" => Ok(render_opcodes(&strip_directives(input.source))),
@@ -275,6 +276,15 @@ fn render_document(input: &Input) -> Result<String, String> {
         out.push_str(&format!("text:\n{}\nerrors: {}\n", document.text(), document.file().errors.len()));
     }
     Ok(out)
+}
+
+fn render_format(input: &Input) -> Result<String, String> {
+    let mut document = Document::new(&plain_text(input.source));
+    let range = input.queries.iter().find(|q| q.kind == "range").map(|q| parse_edit(&q.args).map(|(r, _)| r)).transpose()?;
+    let edits = crate::formatting::edits(&document, range);
+    crate::formatting::apply(&mut document, edits);
+    let lines: Vec<String> = document.text().split('\n').map(|l| format!("|{}|", l.replace('\r', "\\r"))).collect();
+    Ok(format!("{}\n", lines.join("\n")))
 }
 
 pub fn plain_text(source: &str) -> String {

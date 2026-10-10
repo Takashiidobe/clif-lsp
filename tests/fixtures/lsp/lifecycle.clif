@@ -1,7 +1,7 @@
 ; mode: lsp
 ; lsp: open
 ; lsp: change 1:0-1:0 x
-; lsp: request textDocument/formatting {"options":{"tabSize":4,"insertSpaces":true}}
+; lsp: request textDocument/documentLink
 ; lsp: request nope/nothing
 ; lsp: close
 ; check: initialize -> {
@@ -9,7 +9,7 @@
 ; check: "name":"clif-lsp"
 ; nextln: open
 ; nextln: change 1:0-1:0 x
-; nextln: textDocument/formatting -> error -32601
+; nextln: textDocument/documentLink -> error -32601
 ; nextln: nope/nothing -> error -32601
 ; nextln: close
 ; nextln: shutdown -> null
