@@ -56,7 +56,7 @@ Params:
 
 - `textDocument`: the document.
 - `view`: the view name. One of `cfg`, `analysis`, `def_use`, `use_counts`,
-  `live_ranges`, `passes`, `diff`, `stage`, `allocators`, `regalloc`, `provenance`, `egraph`.
+  `live_ranges`, `passes`, `diff`, `disasm`, `stage`, `allocators`, `regalloc`, `provenance`, `egraph`.
 - `function`: the function name, for example `%main`. Defaults to the first
   function in the file.
 - `args`: an optional object of view-specific arguments.
@@ -193,6 +193,19 @@ Views:
 - `diff`: a `diff` section between two steps. `args` takes `from` (default
   `parsed`) and `to` (default `optimized`), each a step name; `optimized` is the
   same as `egraph`. The `stage` view also accepts the step names.
+
+- `disasm`: the final machine code of the optimized function for the file's
+  `target` (x86_64 without one), disassembled with Capstone through
+  cranelift's `disas` feature. Sections: a `table` (`metric`, `value`: target,
+  code bytes, machine instructions, how many map to CLIF), a `table` with one
+  row per machine instruction (`offset`, `bytes`, `instruction`, `CLIF`) and an
+  `html` page that groups the rows under their CLIF instruction. Each CLIF
+  instruction is tagged with a unique source location before compiling, and
+  each machine instruction takes the CLIF instruction whose range contains its
+  offset, so a CLIF instruction owns the code up to the next one. The `CLIF`
+  column is filled on the first row of each run and blank on the rest, and on
+  code with no CLIF instruction (prologue). The CLIF is the optimized function.
+  x86_64, aarch64, riscv64 and s390x; other targets fail with an error.
 
 An unknown view, function or stage, or a missing required argument, fails with
 an invalid-params error.

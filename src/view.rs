@@ -4,6 +4,7 @@ use serde_json::Value;
 use crate::analysis::{self, FunctionAnalysis};
 use crate::cfg;
 use crate::def_use;
+use crate::disasm;
 use crate::document::Document;
 use crate::egraph;
 use crate::live_range;
@@ -40,7 +41,7 @@ pub struct TreeNode {
     pub children: Vec<TreeNode>,
 }
 
-const VIEWS: [&str; 12] = ["cfg", "analysis", "def_use", "use_counts", "live_ranges", "passes", "diff", "stage", "allocators", "regalloc", "provenance", "egraph"];
+const VIEWS: [&str; 13] = ["cfg", "analysis", "def_use", "use_counts", "live_ranges", "passes", "diff", "disasm", "stage", "allocators", "regalloc", "provenance", "egraph"];
 
 pub fn render(document: &Document, view: &str, function: Option<&str>, args: &Value) -> Result<View, String> {
     match view {
@@ -51,6 +52,7 @@ pub fn render(document: &Document, view: &str, function: Option<&str>, args: &Va
         "live_ranges" => live_ranges_view(document, function),
         "passes" => passes_view(document, function),
         "diff" => diff_view(document, function, args),
+        "disasm" => disasm_view(document, function),
         "stage" => stage_view(document, function, args),
         "allocators" => allocators_view(document, function),
         "regalloc" => regalloc_view(document, function),
@@ -223,6 +225,35 @@ fn use_counts_view(document: &Document, function: Option<&str>) -> Result<View, 
             Section::Table { title: "Dead values".to_owned(), columns: columns(&["value", "block", "definition"]), rows: dead },
             Section::Table { title: "Single-use values".to_owned(), columns: columns(&["value", "block", "definition", "used by"]), rows: single },
             Section::Html { title: "Use counts page".to_owned(), html: page },
+        ],
+    })
+}
+
+fn disasm_view(document: &Document, function: Option<&str>) -> Result<View, String> {
+    let target = stages::target(document, function)?;
+    let report = disasm::analyze(&target)?;
+    let columns = |names: &[&str]| names.iter().map(|n| (*n).to_owned()).collect();
+    let summary = vec![
+        vec!["target".to_owned(), report.triple.clone()],
+        vec!["code bytes".to_owned(), report.code_bytes.to_string()],
+        vec!["machine instructions".to_owned(), report.lines.len().to_string()],
+        vec!["mapped to CLIF".to_owned(), report.mapped().to_string()],
+    ];
+    let rows = (0..report.lines.len())
+        .map(|index| {
+            let line = &report.lines[index];
+            vec![format!("{:04x}", line.offset), line.bytes.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" "), line.text.clone(), report.clif_for_row(index).to_owned()]
+        })
+        .collect();
+    Ok(View {
+        schema: SCHEMA,
+        view: "disasm".to_owned(),
+        title: format!("Disassembly of {} (optimized CLIF)", report.name),
+        function: report.name.clone(),
+        sections: vec![
+            Section::Table { title: "Summary".to_owned(), columns: columns(&["metric", "value"]), rows: summary },
+            Section::Table { title: "Machine code".to_owned(), columns: columns(&["offset", "bytes", "instruction", "CLIF"]), rows },
+            Section::Html { title: "Disassembly page".to_owned(), html: report.html() },
         ],
     })
 }

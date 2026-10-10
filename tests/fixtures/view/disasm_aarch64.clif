@@ -1,0 +1,15 @@
+; mode: view
+; ^ view disasm
+; check: view disasm
+; check: target | aarch64-unknown-unknown-elf
+; check: == Machine code ==
+; nextln: offset | bytes | instruction | CLIF
+; check: add w0, w0, w1 | v2 = iadd.i32 v0, v1
+; check: ret
+set opt_level=speed
+target aarch64
+function %f(i32, i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = iadd v0, v1
+    return v2
+}

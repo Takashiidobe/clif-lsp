@@ -1,0 +1,43 @@
+; mode: view, lsp
+; ^ view disasm
+; ^ view disasm %g
+; ^ view disasm %missing
+; lsp: open
+; lsp: request clif/view {"view":"disasm","function":"%g"}
+; check: view disasm
+; check: title: Disassembly of %f (optimized CLIF)
+; check: == Summary ==
+; nextln: metric | value
+; nextln: target | x86_64-unknown-unknown-elf
+; nextln: code bytes | 15
+; nextln: machine instructions | 7
+; nextln: mapped to CLIF | 5
+; check: == Machine code ==
+; nextln: offset | bytes | instruction | CLIF
+; nextln: 0000 | 55 | pushq %rbp |
+; nextln: 0001 | 48 89 e5 | movq %rsp, %rbp |
+; nextln: 0004 | 8d 04 37 | leal (%rdi, %rsi), %eax | v2 = iadd.i32 v0, v1
+; nextln: 0007 | 0f af c6 | imull %esi, %eax | v3 = imul.i32 v2, v1
+; nextln: 000a | 48 89 ec | movq %rbp, %rsp | return v3
+; nextln: 000d | 5d | popq %rbp |
+; nextln: 000e | c3 | retq |
+; nextln: == Disassembly page ==
+; nextln: (html page)
+; check: view disasm %g
+; check: title: Disassembly of %g (optimized CLIF)
+; check: 0007 | 48 89 ec | movq %rbp, %rsp | return v0
+; check: view disasm %missing
+; nextln: error: no function `%missing`
+; check: clif/view -> {"function":"%g"
+set opt_level=speed
+target x86_64
+function %f(i32, i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = iadd v0, v1
+    v3 = imul v2, v1
+    return v3
+}
+function %g(i32) -> i32 {
+block0(v0: i32):
+    return v0
+}

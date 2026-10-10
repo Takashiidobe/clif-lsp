@@ -125,7 +125,7 @@ vim.api.nvim_create_user_command('ClifView', function(o)
         elseif s.kind == 'diff' then
           table.insert(out, s.text)
         elseif s.kind == 'html' then
-          table.insert(out, '(web page: use :ClifCfg, :ClifRegalloc, :ClifProvenance, :ClifEgraph, :ClifLiveRanges, :ClifPasses, :ClifUseCounts or :ClifDefUse)')
+          table.insert(out, '(web page: use :ClifCfg, :ClifRegalloc, :ClifProvenance, :ClifEgraph, :ClifLiveRanges, :ClifPasses, :ClifDisasm, :ClifUseCounts or :ClifDefUse)')
         elseif s.kind == 'table' then
           table.insert(out, table.concat(s.columns, '\t'))
           for _, row in ipairs(s.rows) do
@@ -155,7 +155,7 @@ end, { nargs = '+' })
   `:ClifGraphImage %main`. See [Drawing the graph](#drawing-the-graph).
 - `:ClifAnalysis` shows dominators and liveness as a Lua table.
 - `:ClifView view [function] [args]` shows a `clif/view` view: `cfg`,
-  `analysis`, `def_use`, `use_counts`, `live_ranges`, `passes`, `diff`, `stage`, `allocators`,
+  `analysis`, `def_use`, `use_counts`, `live_ranges`, `passes`, `diff`, `disasm`, `stage`, `allocators`,
   `regalloc`, `provenance` or `egraph`. The function
   defaults to the first one. `args` is a JSON object and needs the function
   before it, as in `:ClifView stage %main {"stage":"vcode"}`.
@@ -346,6 +346,26 @@ graphical_view('ClifDiff', 'diff', function(fargs)
 end)
 ```
 
+## Disassembly
+
+`:ClifDisasm [function]` compiles the function for the file's `target` line
+(x86_64 without one) and shows the machine code. The scratch buffer has a
+summary and a table with one row per machine instruction: its offset, bytes,
+disassembly and the CLIF instruction it came from. A web page opens with the
+same rows grouped under each CLIF instruction; hover a group to outline it.
+
+The CLIF is the optimized function, so value numbers can differ from the file.
+A CLIF instruction owns every machine instruction up to the next one, so the
+epilogue (`popq`, `retq`) is listed under the `return`. Instructions with no
+CLIF instruction, such as the prologue, have a blank CLIF column. x86_64,
+aarch64, riscv64 and s390x are supported; the disassembler is Capstone, built
+into the server, so nothing needs to be installed. Add it next to the other
+`graphical_view` calls:
+
+```lua
+graphical_view('ClifDisasm', 'disasm')
+```
+
 ## Uses
 
 `:ClifUseCounts [function]` lists the values with no uses and the values with
@@ -391,6 +411,7 @@ Then open a fixture and run the command in the table.
 | `view/egraph_view.clif`          | `:ClifEgraph %demo` for rewritten forms.            |
 | `view/live_ranges.clif`          | `:ClifLiveRanges` for a diamond of live ranges.     |
 | `view/passes.clif`               | `:ClifPasses`, `:ClifDiff parsed egraph %f`.        |
+| `view/disasm.clif`               | `:ClifDisasm %f` for code mapped to CLIF.           |
 | `view/def_use.clif`              | `:ClifDefUse v2 %f 2` for a two-level use tree.     |
 | `view/use_counts.clif`           | `:ClifUseCounts` for dead and single-use values.    |
 | `calls/hierarchy.clif`           | `:lua vim.lsp.buf.incoming_calls()` on a name.      |

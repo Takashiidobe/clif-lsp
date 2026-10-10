@@ -5,6 +5,7 @@ pub mod actions;
 pub mod completion;
 pub mod def_use;
 pub mod diagnostics;
+pub mod disasm;
 pub mod document;
 pub mod egraph;
 pub mod egraph_trace;
