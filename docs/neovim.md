@@ -106,6 +106,13 @@ vim.api.nvim_create_user_command('ClifAnalysis', function()
   request('clif/analysis', {}, vim.inspect)
 end, {})
 
+local function tree_lines(nodes, depth, out)
+  for _, node in ipairs(nodes) do
+    table.insert(out, string.rep('  ', depth) .. node.label)
+    tree_lines(node.children, depth + 1, out)
+  end
+end
+
 vim.api.nvim_create_user_command('ClifView', function(o)
   local args = o.fargs[3] and vim.json.decode(o.fargs[3]) or nil
   request('clif/view', { view = o.fargs[1], ['function'] = o.fargs[2], args = args },
@@ -124,6 +131,8 @@ vim.api.nvim_create_user_command('ClifView', function(o)
           for _, row in ipairs(s.rows) do
             table.insert(out, table.concat(row, '\t'))
           end
+        elseif s.kind == 'tree' then
+          tree_lines(s.nodes, 0, out)
         else
           table.insert(out, vim.inspect(s))
         end
