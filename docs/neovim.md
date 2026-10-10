@@ -146,10 +146,12 @@ end, { nargs = '+' })
   `:ClifGraphImage %main`. See [Drawing the graph](#drawing-the-graph).
 - `:ClifAnalysis` shows dominators and liveness as a Lua table.
 - `:ClifView view [function] [args]` shows a `clif/view` view: `cfg`,
-  `analysis`, `stage` or `allocators`. The function defaults to the first one.
-  `args` is a JSON object and needs the function before it, as in
-  `:ClifView stage %main {"stage":"vcode"}`. `:ClifView allocators` compares
-  the two register allocators.
+  `analysis`, `stage`, `allocators`, `regalloc` or `provenance`. The function
+  defaults to the first one. `args` is a JSON object and needs the function
+  before it, as in `:ClifView stage %main {"stage":"vcode"}`.
+  `:ClifView allocators` compares the two register allocators.
+  `:ClifView provenance %main` shows which input instruction each optimized
+  instruction came from, and which were folded away or created.
 - `:ClifRegalloc [function]` shows the register assignments, spills and reloads
   as tables and a drawn graph. See [Register allocation](#register-allocation).
 

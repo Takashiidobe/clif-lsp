@@ -13,6 +13,7 @@ pub mod lexer;
 pub mod modes;
 pub mod navigation;
 pub mod parser;
+pub mod provenance;
 pub mod ranges;
 pub mod regalloc;
 pub mod refactors;

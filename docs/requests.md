@@ -56,7 +56,7 @@ Params:
 
 - `textDocument`: the document.
 - `view`: the view name. One of `cfg`, `analysis`, `stage`, `allocators`,
-  `regalloc`.
+  `regalloc`, `provenance`.
 - `function`: the function name, for example `%main`. Defaults to the first
   function in the file.
 - `args`: an optional object of view-specific arguments.
@@ -128,6 +128,21 @@ Views:
   where the new location holds. The data comes from Cranelift's value-label
   debug ranges, so only values that survive optimization appear, and it says
   where a value lives, not why the allocator chose it.
+- `provenance`: which input instruction each optimized instruction came from.
+  Every input instruction is tagged with a unique source location, the function
+  is optimized, and the tags are read back. Three sections: a `table` of counts
+  (`input instructions`, `unchanged`, `changed`, `new, no provenance
+  available`, `no longer present`), a `table` of optimized instructions
+  (`block`, `instruction`, `status`, `origin`), and a `table` of input
+  instructions whose tag no longer appears.
+
+  `status` is `unchanged` or `changed` when the tag survived, comparing the
+  instruction text before and after, and `new` when the optimizer created the
+  instruction. Cranelift gives instructions it creates no source location, so a
+  new instruction says `no provenance available` rather than a guess. An input
+  instruction that is `no longer present` was deleted, merged into another
+  (value numbering), or replaced by a new instruction (constant folding,
+  strength reduction); the public API does not say which, or which rule fired.
 
 An unknown view, function or stage, or a missing required argument, fails with
 an invalid-params error.

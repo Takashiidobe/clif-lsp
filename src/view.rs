@@ -4,6 +4,7 @@ use serde_json::Value;
 use crate::analysis::{self, FunctionAnalysis};
 use crate::cfg;
 use crate::document::Document;
+use crate::provenance::{self, Status};
 use crate::regalloc::{self, Event};
 use crate::stages::{self, Stage};
 
@@ -34,7 +35,7 @@ pub struct TreeNode {
     pub children: Vec<TreeNode>,
 }
 
-const VIEWS: [&str; 5] = ["cfg", "analysis", "stage", "allocators", "regalloc"];
+const VIEWS: [&str; 6] = ["cfg", "analysis", "stage", "allocators", "regalloc", "provenance"];
 
 pub fn render(document: &Document, view: &str, function: Option<&str>, args: &Value) -> Result<View, String> {
     match view {
@@ -43,6 +44,7 @@ pub fn render(document: &Document, view: &str, function: Option<&str>, args: &Va
         "stage" => stage_view(document, function, args),
         "allocators" => allocators_view(document, function),
         "regalloc" => regalloc_view(document, function),
+        "provenance" => provenance_view(document, function),
         _ => Err(format!("unknown view `{view}`, expected one of: {}", VIEWS.join(", "))),
     }
 }
@@ -191,6 +193,39 @@ fn allocators_view(document: &Document, function: Option<&str>) -> Result<View, 
         sections: vec![
             Section::Table { title: "Summary".to_owned(), columns, rows },
             Section::Diff { title: "vcode".to_owned(), from: ALGORITHMS[0].to_owned(), to: ALGORITHMS[1].to_owned(), text },
+        ],
+    })
+}
+
+fn provenance_view(document: &Document, function: Option<&str>) -> Result<View, String> {
+    let target = stages::target(document, function)?;
+    let report = provenance::analyze(&target)?;
+    let columns = |names: &[&str]| names.iter().map(|n| (*n).to_owned()).collect();
+    let summary = vec![
+        vec!["input instructions".to_owned(), report.inputs.to_string()],
+        vec!["unchanged".to_owned(), report.count(Status::Unchanged).to_string()],
+        vec!["changed".to_owned(), report.count(Status::Changed).to_string()],
+        vec!["new, no provenance available".to_owned(), report.count(Status::New).to_string()],
+        vec!["no longer present".to_owned(), report.removed.len().to_string()],
+    ];
+    let instructions = report
+        .rows
+        .iter()
+        .map(|row| {
+            let origin = row.origin.clone().unwrap_or_else(|| "no provenance available".to_owned());
+            vec![row.block.clone(), row.text.clone(), row.status.label().to_owned(), origin]
+        })
+        .collect();
+    let removed = report.removed.iter().map(|text| vec![text.clone()]).collect();
+    Ok(View {
+        schema: SCHEMA,
+        view: "provenance".to_owned(),
+        title: format!("Optimization provenance of {}", report.name),
+        function: report.name.clone(),
+        sections: vec![
+            Section::Table { title: "Summary".to_owned(), columns: columns(&["metric", "count"]), rows: summary },
+            Section::Table { title: "Optimized instructions".to_owned(), columns: columns(&["block", "instruction", "status", "origin"]), rows: instructions },
+            Section::Table { title: "No longer present".to_owned(), columns: columns(&["input instruction"]), rows: removed },
         ],
     })
 }
