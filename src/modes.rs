@@ -27,6 +27,7 @@ pub fn render(mode: &str, input: &Input) -> Result<String, String> {
         "syntax-tree" => Ok(render_syntax_tree(input.source)),
         "names" => Ok(render_names(&strip_directives(input.source))),
         "opcodes" => Ok(render_opcodes(&strip_directives(input.source))),
+        "view" => Ok(render_views(input)),
         "source" => Ok(strip_directives(input.source)),
         _ => Err(format!("unknown mode `{mode}`")),
     }
@@ -276,6 +277,21 @@ fn render_document(input: &Input) -> Result<String, String> {
         out.push_str(&format!("text:\n{}\nerrors: {}\n", document.text(), document.file().errors.len()));
     }
     Ok(out)
+}
+
+fn render_views(input: &Input) -> String {
+    let document = Document::new(&plain_text(input.source));
+    let mut out = String::new();
+    for query in input.queries.iter().filter(|q| q.kind == "view") {
+        let (view, function) = query.args.split_once(char::is_whitespace).map_or((query.args.as_str(), None), |(v, f)| (v, Some(f.trim())));
+        out.push_str(&format!("view {}\n", query.args));
+        match crate::view::render(&document, view, function) {
+            Ok(rendered) => out.push_str(&serde_json::to_string_pretty(&rendered).unwrap()),
+            Err(message) => out.push_str(&format!("error: {message}")),
+        }
+        out.push('\n');
+    }
+    out
 }
 
 fn render_format(input: &Input) -> Result<String, String> {

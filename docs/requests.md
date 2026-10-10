@@ -48,3 +48,42 @@ Result: `{ functions: [{ name, blocks, values }] }`.
   null for the entry block and for unreachable blocks.
 - `values` lists `{ name, definedIn, liveIn, liveOut }`, where the last two are
   block names.
+
+## clif/view
+
+Returns a named view of one function as a self-describing document. Clients
+render the sections generically, so a new view needs no new client code.
+
+Params:
+
+- `textDocument`: the document.
+- `view`: the view name. Currently `cfg`.
+- `function`: the function name, for example `%main`. Defaults to the first
+  function in the file.
+
+Result: `{ schema, view, function, title, sections }`.
+
+- `schema` is the schema version, currently 1. It changes only for
+  incompatible changes. New fields and new section kinds can appear without a
+  bump, so clients must ignore unknown fields and skip sections of an unknown
+  kind.
+- `sections` is an ordered list. Each section has a `kind` that says how to
+  render it and a `title`.
+
+Section kinds:
+
+- `text`: `{ text }`, preformatted plain text.
+- `dot`: `{ dot }`, Graphviz DOT source to be laid out by the client.
+- `table`: `{ columns, rows }`. `columns` is a list of headings and each row is
+  a list of strings, one per column.
+- `tree`: `{ nodes }`, where each node is `{ label, children }` and `children`
+  is a list of nodes.
+- `diff`: `{ from, to, text }`. `from` and `to` label the two sides and `text`
+  is a unified diff.
+
+Views:
+
+- `cfg`: a `dot` section with the control flow graph and a `table` section with
+  one row per block (`block`, `successors`, `reachable`).
+
+An unknown view or function fails with an invalid-params error.

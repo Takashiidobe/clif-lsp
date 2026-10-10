@@ -22,3 +22,4 @@ pub mod stages;
 pub mod symbols;
 pub mod syntax;
 pub mod tables;
+pub mod view;

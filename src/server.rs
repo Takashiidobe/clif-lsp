@@ -29,6 +29,7 @@ use crate::semantic;
 use crate::signature;
 use crate::stages::{self, Stage};
 use crate::symbols;
+use crate::view;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -44,7 +45,8 @@ pub struct GraphResponse {
 pub fn service() -> (LspService<Backend>, ClientSocket) {
     LspService::build(Backend::new).custom_method("clif/controlFlowGraph", Backend::control_flow_graph)
         .custom_method("clif/analysis", Backend::analysis)
-        .custom_method("clif/stage", Backend::stage).finish()
+        .custom_method("clif/stage", Backend::stage)
+        .custom_method("clif/view", Backend::view).finish()
 }
 
 #[derive(Serialize)]
@@ -65,6 +67,14 @@ pub struct StageResponse {
     pub function: String,
     pub stage: String,
     pub text: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ViewParams {
+    pub text_document: TextDocumentIdentifier,
+    pub view: String,
+    pub function: Option<String>,
 }
 
 pub struct Backend {
@@ -95,6 +105,12 @@ impl Backend {
         let document = documents.get(&params.text_document.uri).ok_or_else(|| Error::invalid_params("document is not open"))?;
         let rendered = stages::render(document, params.function.as_deref(), stage).map_err(Error::invalid_params)?;
         Ok(StageResponse { function: rendered.function, stage: params.stage, text: rendered.text })
+    }
+
+    async fn view(&self, params: ViewParams) -> Result<view::View> {
+        let documents = self.documents.read().await;
+        let document = documents.get(&params.text_document.uri).ok_or_else(|| Error::invalid_params("document is not open"))?;
+        view::render(document, &params.view, params.function.as_deref()).map_err(Error::invalid_params)
     }
 
     async fn publish(&self, uri: Uri, version: Option<i32>, diagnostics: Vec<Diagnostic>) {
