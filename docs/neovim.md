@@ -62,29 +62,136 @@ vim.api.nvim_create_autocmd('BufWritePre', {
 
 The formatter always uses four-space indentation and ignores `shiftwidth`.
 
-## Viewing the compiled output
+## Custom requests
 
-The custom requests are not bound to any key. This command opens the first
-function in the file, after the stage you name, in a scratch buffer:
+The [custom requests](requests.md) are not bound to any key. This defines one
+command for each. Results open in a scratch buffer.
 
 ```lua
-vim.api.nvim_create_user_command('ClifStage', function(opts)
+local function show(text)
+  vim.cmd('new')
+  vim.bo.buftype, vim.bo.bufhidden = 'nofile', 'wipe'
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, vim.split(text, '\n'))
+end
+
+local function request(method, params, render)
   local client = vim.lsp.get_clients({ bufnr = 0, name = 'clif_lsp' })[1]
-  client:request('clif/stage', {
-    textDocument = vim.lsp.util.make_text_document_params(),
-    stage = opts.args ~= '' and opts.args or 'optimized',
-  }, function(err, result)
+  params.textDocument = vim.lsp.util.make_text_document_params()
+  client:request(method, params, function(err, result)
     if err then
       vim.notify(err.message, vim.log.levels.ERROR)
-      return
+    else
+      show(render(result))
     end
-    vim.cmd('new')
-    vim.bo.buftype, vim.bo.bufhidden = 'nofile', 'wipe'
-    vim.api.nvim_buf_set_lines(0, 0, -1, false, vim.split(result.text, '\n'))
+  end)
+end
+
+vim.api.nvim_create_user_command('ClifStage', function(o)
+  local stage = o.fargs[1] or 'optimized'
+  request('clif/stage', { stage = stage, ['function'] = o.fargs[2] },
+    function(r) return r.text end)
+end, { nargs = '*' })
+
+vim.api.nvim_create_user_command('ClifGraph', function()
+  request('clif/controlFlowGraph', {}, function(r)
+    local dot = {}
+    for _, f in ipairs(r.functions) do
+      table.insert(dot, f.dot)
+    end
+    return table.concat(dot, '\n')
+  end)
+end, {})
+
+vim.api.nvim_create_user_command('ClifAnalysis', function()
+  request('clif/analysis', {}, vim.inspect)
+end, {})
+```
+
+- `:ClifStage [stage] [function]` shows `parsed`, `optimized` (the default), or
+  `vcode`. `optimized` and `vcode` need a `target` line in the file. The
+  function defaults to the first one, and is written with its `%`, as in
+  `:ClifStage vcode %main`.
+- `:ClifGraph` shows each function's graph as Graphviz DOT. Save the buffer to a
+  file and run `dot -Tpng graph.dot -o graph.png` to draw it. This needs
+  Graphviz.
+- `:ClifGraphImage [function]` draws the graph and opens the image in a split.
+  It draws every function, or only the one you name, as in
+  `:ClifGraphImage %main`. See [Drawing the graph](#drawing-the-graph).
+- `:ClifAnalysis` shows dominators and liveness as a Lua table.
+
+## Drawing the graph
+
+`:ClifGraphImage` needs Graphviz (`dot` on your `PATH`) and a terminal that
+supports the kitty graphics protocol, such as kitty, Ghostty, or WezTerm. It
+also needs [snacks.nvim](https://github.com/folke/snacks.nvim) with images
+turned on, and ImageMagick:
+
+```lua
+{ 'folke/snacks.nvim', opts = { image = { enabled = true } } }
+```
+
+Without snacks the image opens as a binary file.
+
+Add this command next to the others:
+
+```lua
+vim.api.nvim_create_user_command('ClifGraphImage', function(o)
+  if vim.fn.executable('dot') == 0 then
+    vim.notify('graphviz `dot` is not installed', vim.log.levels.ERROR)
+    return
+  end
+  request('clif/controlFlowGraph', {}, function(r)
+    for i, f in ipairs(r.functions) do
+      if o.args == '' or f.name == o.args then
+        local png = vim.fn.tempname() .. '-' .. i .. '.png'
+        local done = vim.system({ 'dot', '-Tpng', '-o', png }, { stdin = f.dot }):wait()
+        if done.code == 0 then
+          vim.cmd('split ' .. vim.fn.fnameescape(png))
+        else
+          vim.notify(done.stderr, vim.log.levels.ERROR)
+        end
+      end
+    end
   end)
 end, { nargs = '?' })
 ```
 
-Run `:ClifStage` for the optimized form, or `:ClifStage vcode` for the lowered
-code. The `optimized` and `vcode` stages need a `target` line in the file. See
-[requests.md](requests.md).
+This also requires `request` to skip the scratch buffer when its render function
+returns nothing, so change the callback in `request` to:
+
+```lua
+local text = render(result)
+if text then show(text) end
+```
+
+For `tests/fixtures/analysis/diamond.clif`, `:ClifGraphImage` opens this:
+
+![Control flow graph of the diamond fixture](images/diamond-cfg.png)
+
+## Trying it on the fixtures
+
+The repository's test fixtures make good sample files. Build the server with
+`cargo build` and point `cmd` at `target/debug/clif-lsp` to run it without
+installing:
+
+```lua
+cmd = { '/path/to/clif-lsp/target/debug/clif-lsp' },
+```
+
+Then open a fixture and run the command in the table.
+
+| Fixture                          | Try                                                 |
+| -------------------------------- | --------------------------------------------------- |
+| `valid/branch_i32.clif`          | `K` on `brif` or `v2` for hover. `:ClifGraph`.      |
+| `analysis/diamond.clif`          | `:ClifAnalysis`, then `K` on a block name.          |
+| `cfg/graph.clif`                 | `:ClifGraph`. One block is unreachable and faded.   |
+| `stages/views.clif`              | `:ClifStage`, `:ClifStage vcode`.                   |
+| `calls/hierarchy.clif`           | `:lua vim.lsp.buf.incoming_calls()` on a name.      |
+| `actions/unknown_opcode.clif`    | `gra` on the bad opcode.                            |
+| `actions/undefined_names.clif`   | `gra` on an undefined value, block, or declaration. |
+| `broken/missing_brace.clif`      | Diagnostics on an unclosed function.                |
+| `diagnostics/verifier.clif`      | Verifier errors on instructions.                    |
+| `format/indent_and_spacing.clif` | `:lua vim.lsp.buf.format()`, then `u` to compare.   |
+
+The `; mode:`, `; check:`, and `; lsp:` lines at the top of a fixture are plain
+comments. The server ignores them, and the formatter leaves their text alone.
