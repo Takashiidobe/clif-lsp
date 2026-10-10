@@ -164,8 +164,20 @@ async fn step(client: &mut Client, source: &str, command: &str) -> Result<String
             let shown = if labels.is_empty() { "(none)".to_owned() } else { labels.join(" ") };
             Ok(format!("complete {rest} -> {shown}"))
         }
+        "snippets" => Ok("snippets".into()),
+        "snippet" => {
+            let (at, label) = rest.split_once(' ').ok_or("expected `snippet L:C label`")?;
+            let (line, col) = at.split_once(':').ok_or("expected `snippet L:C label`")?;
+            let position = json!({"line": line.parse::<u32>().map_err(|e| e.to_string())?, "character": col.parse::<u32>().map_err(|e| e.to_string())?});
+            let params = json!({"textDocument": client.text_document(), "position": position});
+            let response = client.request("textDocument/completion", params).await?;
+            let items: Value = serde_json::from_str(&response).map_err(|_| response.clone())?;
+            let item = items.as_array().into_iter().flatten().find(|i| i["label"] == label);
+            let shown = item.and_then(|i| i["insertText"].as_str()).unwrap_or("(none)");
+            Ok(format!("snippet {at} {label} -> {shown}"))
+        }
         "actions" => {
-            let (range, _) = parse_edit(&format!("{rest} "))?;
+            let (range, _)= parse_edit(&format!("{rest} "))?;
             let params = json!({"textDocument": client.text_document(), "range": range, "context": {"diagnostics": []}});
             let response = client.request("textDocument/codeAction", params).await?;
             let actions: Value = serde_json::from_str(&response).map_err(|_| response.clone())?;
@@ -278,7 +290,12 @@ async fn session(source: &str) -> Result<String, String> {
     };
 
     let mut out = String::new();
-    let init = json!({"processId": null, "rootUri": null, "capabilities": {}});
+    let capabilities = if script_of(source).iter().any(|c| c == "snippets") {
+        json!({"textDocument": {"completion": {"completionItem": {"snippetSupport": true}}}})
+    } else {
+        json!({})
+    };
+    let init = json!({"processId": null, "rootUri": null, "capabilities": capabilities});
     let initialized = client.request("initialize", init).await?;
     if let Ok(result) = serde_json::from_str::<Value>(&initialized) {
         let types = &result["capabilities"]["semanticTokensProvider"]["legend"]["tokenTypes"];

@@ -1,0 +1,8 @@
+; mode: lsp
+; lsp: open
+; lsp: snippet 2:9 iadd
+; check: snippet 2:9 iadd -> (none)
+function %f(i32) -> i32 {
+block0(v0: i32):
+    v1 =
+}

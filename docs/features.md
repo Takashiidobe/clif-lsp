@@ -52,7 +52,13 @@ Hover shows:
 
 Completion triggers on `.` and `%`, and also works on request. It offers:
 
-- Opcodes at the start of an instruction.
+- Opcodes at the start of an instruction. If the client supports snippets, an
+  opcode inserts its operands as tab stops: values as `v0`, `v1`, ..., immediates
+  as `0`, `Cond` as a choice list, blocks, `fn`, `sig`, `ss` and `gv` operands as
+  `block0`, `fn0` and so on. Opcodes with a controlling type, such as `iconst`
+  and `load`, get a `.i32` suffix tab stop first. Optional memory flags are left
+  out. Opcodes whose operands can't be filled this way, such as `br_table` and
+  `try_call`, insert the bare name.
 - Types after `.` on an opcode, as in `iconst.`.
 - Condition codes, trap codes, and memory flags where an opcode expects them.
 - Values, blocks, declarations, and function names that are in scope in operand

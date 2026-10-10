@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use tokio::sync::RwLock;
 use tower_lsp_server::jsonrpc::{Error, Result};
@@ -82,11 +83,12 @@ pub struct ViewParams {
 pub struct Backend {
     client: Client,
     documents: Arc<RwLock<HashMap<Uri, Document>>>,
+    snippets: AtomicBool,
 }
 
 impl Backend {
     pub fn new(client: Client) -> Self {
-        Self { client, documents: Arc::default() }
+        Self { client, documents: Arc::default(), snippets: AtomicBool::new(false) }
     }
 
     async fn control_flow_graph(&self, params: GraphParams) -> Result<GraphResponse> {
@@ -121,7 +123,15 @@ impl Backend {
 }
 
 impl LanguageServer for Backend {
-    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
+    async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
+        let snippets = params
+            .capabilities
+            .text_document
+            .and_then(|t| t.completion)
+            .and_then(|c| c.completion_item)
+            .and_then(|i| i.snippet_support)
+            .unwrap_or(false);
+        self.snippets.store(snippets, Ordering::Relaxed);
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::INCREMENTAL)),
@@ -201,7 +211,8 @@ impl LanguageServer for Backend {
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
         let at = params.text_document_position;
         let documents = self.documents.read().await;
-        let items = documents.get(&at.text_document.uri).map(|d| completion::at(d, at.position));
+        let snippets = self.snippets.load(Ordering::Relaxed);
+        let items = documents.get(&at.text_document.uri).map(|d| completion::at(d, at.position, snippets));
         Ok(items.map(CompletionResponse::Array))
     }
 

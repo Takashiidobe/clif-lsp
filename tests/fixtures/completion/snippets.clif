@@ -1,0 +1,45 @@
+; mode: lsp
+; lsp: snippets
+; lsp: open
+; lsp: snippet 2:9 iadd
+; lsp: snippet 2:9 iconst
+; lsp: snippet 2:9 icmp
+; lsp: snippet 2:9 fcmp
+; lsp: snippet 2:9 load
+; lsp: snippet 2:9 store
+; lsp: snippet 2:9 select
+; lsp: snippet 2:9 ireduce
+; lsp: snippet 2:9 stack_addr
+; lsp: snippet 2:9 call
+; lsp: snippet 2:9 call_indirect
+; lsp: snippet 2:9 brif
+; lsp: snippet 2:9 jump
+; lsp: snippet 2:9 trapnz
+; lsp: snippet 2:9 return
+; lsp: snippet 2:9 debugtrap
+; lsp: snippet 2:9 br_table
+; lsp: snippet 2:9 shuffle
+; lsp: snippet 2:9 try_call
+; check: snippet 2:9 iadd -> iadd $${1:v0}, $${2:v1}
+; nextln: snippet 2:9 iconst -> iconst.$${1:i32} $${2:0}
+; nextln: snippet 2:9 icmp -> icmp $${1|eq,ne,slt,sge,sgt,sle,ult,uge,ugt,ule|}, $${2:v0}, $${3:v1}
+; nextln: snippet 2:9 fcmp -> fcmp $${1|ord,uno,eq,ne,one,ueq,lt,le,gt,ge,ult,ule,ugt,uge|}, $${2:v0}, $${3:v1}
+; nextln: snippet 2:9 load -> load.$${1:i32} $${2:v0}, $${3:0}
+; nextln: snippet 2:9 store -> store $${1:v0}, $${2:v1}, $${3:0}
+; nextln: snippet 2:9 select -> select $${1:v0}, $${2:v1}, $${3:v2}
+; nextln: snippet 2:9 ireduce -> ireduce.$${1:i32} $${2:v0}
+; nextln: snippet 2:9 stack_addr -> stack_addr.$${1:i32} $${2:ss0}, $${3:0}
+; nextln: snippet 2:9 call -> call $${1:fn0}($${2:v0})
+; nextln: snippet 2:9 call_indirect -> call_indirect $${1:sig0}, $${2:v0}($${3:v1})
+; nextln: snippet 2:9 brif -> brif $${1:v0}, $${2:block0}, $${3:block0}
+; nextln: snippet 2:9 jump -> jump $${1:block0}
+; nextln: snippet 2:9 trapnz -> trapnz $${1:v0}, $${2:user1}
+; nextln: snippet 2:9 return -> return $${1:v0}
+; nextln: snippet 2:9 debugtrap -> (none)
+; nextln: snippet 2:9 br_table -> (none)
+; nextln: snippet 2:9 shuffle -> (none)
+; nextln: snippet 2:9 try_call -> (none)
+function %f(i32) -> i32 {
+block0(v0: i32):
+    v1 =
+}
