@@ -33,13 +33,14 @@ pub struct TreeNode {
     pub children: Vec<TreeNode>,
 }
 
-const VIEWS: [&str; 3] = ["cfg", "analysis", "stage"];
+const VIEWS: [&str; 4] = ["cfg", "analysis", "stage", "allocators"];
 
 pub fn render(document: &Document, view: &str, function: Option<&str>, args: &Value) -> Result<View, String> {
     match view {
         "cfg" => cfg_view(document, function),
         "analysis" => analysis_view(document, function),
         "stage" => stage_view(document, function, args),
+        "allocators" => allocators_view(document, function),
         _ => Err(format!("unknown view `{view}`, expected one of: {}", VIEWS.join(", "))),
     }
 }
@@ -131,5 +132,63 @@ fn stage_view(document: &Document, function: Option<&str>, args: &Value) -> Resu
         title: format!("{name} {}", rendered.function),
         function: rendered.function,
         sections: vec![Section::Text { title: name.to_owned(), text: rendered.text }],
+    })
+}
+
+const ALGORITHMS: [&str; 2] = ["backtracking", "single_pass"];
+
+#[derive(Default)]
+struct VcodeCounts {
+    instructions: usize,
+    moves: usize,
+    stack_accesses: usize,
+}
+
+fn count_vcode(vcode: &str) -> VcodeCounts {
+    let mut counts = VcodeCounts::default();
+    for line in vcode.lines().filter(|l| l.starts_with("  ") && !l.trim_start().starts_with("unwind")) {
+        let line = line.trim_start();
+        let mnemonic = line.split_whitespace().next().unwrap_or_default();
+        let touches_stack = ["(%rsp)", "(%rbp)", "[sp"].iter().any(|m| line.contains(m));
+        counts.instructions += 1;
+        counts.stack_accesses += usize::from(touches_stack);
+        counts.moves += usize::from((mnemonic.starts_with("mov") || mnemonic.starts_with("fmov")) && !touches_stack && !line.contains('('));
+    }
+    counts
+}
+
+fn allocators_view(document: &Document, function: Option<&str>) -> Result<View, String> {
+    let target = stages::target(document, function)?;
+    let mut results = Vec::new();
+    for algorithm in ALGORITHMS {
+        let isa = stages::with_algorithm(&*target.isa, algorithm)?;
+        let compiled = stages::compile(&target.function, &*isa).map_err(|e| format!("{algorithm}: {e}"))?;
+        results.push(compiled);
+    }
+    let counts: Vec<VcodeCounts> = results.iter().map(|c| count_vcode(&c.vcode)).collect();
+    let row = |metric: &str, value: &dyn Fn(usize) -> usize| {
+        vec![metric.to_owned(), value(0).to_string(), value(1).to_string()]
+    };
+    let rows = vec![
+        row("code bytes", &|i| results[i].code_bytes),
+        row("instructions", &|i| counts[i].instructions),
+        row("moves", &|i| counts[i].moves),
+        row("stack accesses", &|i| counts[i].stack_accesses),
+    ];
+    let mut columns = vec!["metric".to_owned()];
+    columns.extend(ALGORITHMS.map(str::to_owned));
+    let text = similar::TextDiff::from_lines(&results[0].vcode, &results[1].vcode)
+        .unified_diff()
+        .header(ALGORITHMS[0], ALGORITHMS[1])
+        .to_string();
+    Ok(View {
+        schema: SCHEMA,
+        view: "allocators".to_owned(),
+        title: format!("Register allocators for {}", target.name),
+        function: target.name,
+        sections: vec![
+            Section::Table { title: "Summary".to_owned(), columns, rows },
+            Section::Diff { title: "vcode".to_owned(), from: ALGORITHMS[0].to_owned(), to: ALGORITHMS[1].to_owned(), text },
+        ],
     })
 }

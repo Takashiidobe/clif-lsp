@@ -55,7 +55,7 @@ render the sections generically, so a new view needs no new client code.
 Params:
 
 - `textDocument`: the document.
-- `view`: the view name. Currently `cfg`.
+- `view`: the view name. One of `cfg`, `analysis`, `stage`, `allocators`.
 - `function`: the function name, for example `%main`. Defaults to the first
   function in the file.
 - `args`: an optional object of view-specific arguments.
@@ -88,8 +88,16 @@ Views:
   block, a `table` of blocks (`block`, `immediate dominator`, `predecessors`)
   and a `table` of values (`value`, `defined in`, `live in`, `live out`).
 - `stage`: one `text` section with the function after a pipeline stage. Needs
-  `args.stage`, one of the `clif/stage` stages, and has the same `target` line
-  requirement.
+  `args.stage`, one of the `clif/stage` stages. Uses the file's `target` line,
+  or x86_64 without one.
+- `allocators`: compiles the function with the `backtracking` and `single_pass`
+  register allocators, keeping the file's other settings. A `table` section
+  gives code bytes, instructions, moves and stack accesses for each, and a
+  `diff` section gives the unified diff of the two vcode texts. Moves and stack
+  accesses are counted from the vcode text: a move is a `mov` or `fmov` line
+  with no memory operand, and a stack access is a line that addresses `%rsp`,
+  `%rbp` or `sp`. Callee-saved register saves and restores count as stack
+  accesses.
 
 An unknown view, function or stage, or a missing required argument, fails with
 an invalid-params error.

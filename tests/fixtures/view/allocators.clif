@@ -1,0 +1,70 @@
+; mode: view
+; ^ view allocators %simple
+; ^ view allocators %pressure
+; check: view allocators %simple
+; check:   "title": "Register allocators for %simple",
+; check:           "code bytes",
+; nextln:           "13",
+; nextln:           "45"
+; check:           "instructions",
+; nextln:           "6",
+; nextln:           "14"
+; check:           "moves",
+; nextln:           "2",
+; nextln:           "4"
+; check:           "stack accesses",
+; nextln:           "0",
+; nextln:           "4"
+; check:       "text": "--- backtracking\n+++ single_pass\n
+; sameln: +  movq %r14, (%rsp)\n
+; check: view allocators %pressure
+; check:           "code bytes",
+; nextln:           "210",
+; nextln:           "433"
+; check:           "stack accesses",
+; nextln:           "12",
+; nextln:           "54"
+; check: -  movq %rcx, <offset:1>+(%rsp)\n
+set opt_level=speed
+target x86_64
+function %simple(i64, i64) -> i64 {
+block0(v0: i64, v1: i64):
+    v2 = iadd v0, v1
+    return v2
+}
+function %pressure(i64, i64) -> i64 {
+block0(v0: i64, v1: i64):
+    v2 = iadd v0, v1
+    v3 = imul v2, v0
+    v4 = isub v3, v1
+    v5 = iadd v4, v2
+    v6 = imul v5, v3
+    v7 = iadd v6, v4
+    v8 = isub v7, v5
+    v9 = iadd v8, v6
+    v10 = imul v9, v7
+    v11 = iadd v10, v8
+    v12 = isub v11, v9
+    v13 = iadd v12, v10
+    v14 = imul v13, v11
+    v15 = iadd v14, v12
+    v16 = isub v15, v13
+    v17 = iadd v16, v14
+    v18 = imul v17, v15
+    v19 = iadd v18, v16
+    v20 = iadd v19, v17
+    v21 = iadd v20, v18
+    v22 = iadd v21, v19
+    v23 = iadd v22, v2
+    v24 = iadd v23, v3
+    v25 = iadd v24, v4
+    v26 = iadd v25, v5
+    v27 = iadd v26, v6
+    v28 = iadd v27, v7
+    v29 = iadd v28, v8
+    v30 = iadd v29, v9
+    v31 = iadd v30, v10
+    v32 = iadd v31, v11
+    v33 = iadd v32, v12
+    return v33
+}
