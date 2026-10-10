@@ -265,6 +265,7 @@ const CSS: &str = r#"
 h2 { font-size: 14px; margin: 16px 0 8px; color: var(--muted); }
 .card .head { background: var(--head); padding: 4px 12px; font-weight: 600; }
 .form { display: grid; grid-template-columns: minmax(180px, 1fr) 160px minmax(200px, 1fr); align-items: center; padding: 0 12px; border-top: 1px solid var(--border); }
+.form:hover { outline: 2px solid var(--hl); outline-offset: -2px; }
 .form.chosen { background: var(--new); }
 .bar { display: block; height: 10px; background: var(--line); border-radius: 2px; }
 .cost { color: var(--muted); }
