@@ -17,6 +17,7 @@ pub mod resolve;
 pub mod semantic;
 pub mod signature;
 pub mod server;
+pub mod stages;
 pub mod symbols;
 pub mod syntax;
 pub mod tables;

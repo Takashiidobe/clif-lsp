@@ -26,6 +26,7 @@ use crate::navigation;
 use crate::ranges;
 use crate::semantic;
 use crate::signature;
+use crate::stages::{self, Stage};
 use crate::symbols;
 
 #[derive(Deserialize)]
@@ -41,12 +42,28 @@ pub struct GraphResponse {
 
 pub fn service() -> (LspService<Backend>, ClientSocket) {
     LspService::build(Backend::new).custom_method("clif/controlFlowGraph", Backend::control_flow_graph)
-        .custom_method("clif/analysis", Backend::analysis).finish()
+        .custom_method("clif/analysis", Backend::analysis)
+        .custom_method("clif/stage", Backend::stage).finish()
 }
 
 #[derive(Serialize)]
 pub struct AnalysisResponse {
     pub functions: Vec<analysis::FunctionAnalysis>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StageParams {
+    pub text_document: TextDocumentIdentifier,
+    pub function: Option<String>,
+    pub stage: String,
+}
+
+#[derive(Serialize)]
+pub struct StageResponse {
+    pub function: String,
+    pub stage: String,
+    pub text: String,
 }
 
 pub struct Backend {
@@ -69,6 +86,14 @@ impl Backend {
         let documents = self.documents.read().await;
         let document = documents.get(&params.text_document.uri).ok_or_else(|| Error::invalid_params("document is not open"))?;
         Ok(AnalysisResponse { functions: analysis::analyze(document) })
+    }
+
+    async fn stage(&self, params: StageParams) -> Result<StageResponse> {
+        let stage = Stage::parse(&params.stage).ok_or_else(|| Error::invalid_params(format!("unknown stage `{}`", params.stage)))?;
+        let documents = self.documents.read().await;
+        let document = documents.get(&params.text_document.uri).ok_or_else(|| Error::invalid_params("document is not open"))?;
+        let rendered = stages::render(document, params.function.as_deref(), stage).map_err(Error::invalid_params)?;
+        Ok(StageResponse { function: rendered.function, stage: params.stage, text: rendered.text })
     }
 
     async fn publish(&self, uri: Uri, version: Option<i32>, diagnostics: Vec<Diagnostic>) {

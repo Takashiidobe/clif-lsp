@@ -1,0 +1,28 @@
+; mode: lsp
+; lsp: open
+; lsp: request clif/stage {"stage":"parsed"}
+; lsp: request clif/stage {"stage":"optimized","function":"%g"}
+; lsp: request clif/stage {"stage":"vcode"}
+; lsp: request clif/stage {"stage":"vcode","function":"%h"}
+; lsp: request clif/stage {"stage":"nope"}
+; lsp: request clif/stage {"stage":"parsed","function":"%missing"}
+; check: "function":"%f","stage":"parsed","text":"function %f(i32) -> i32 fast {\nblock0(v0: i32):\n    v1 = iconst.i32 0\n    v2 = iadd v0, v1  ; v1 = 0\n    return v2\n}\n"}
+; nextln: clif/stage -> {"function":"%g","stage":"optimized","text":"function %g(i32) -> i32 fast {\nblock0(v0: i32):\n    return v0\n}\n"}
+; nextln: clif/stage -> {"function":"%f","stage":"vcode","text":"  pushq %rbp\n  movq %rsp, %rbp\nblock0:\n  movq %rdi, %rax\n  movq %rbp, %rsp\n  popq %rbp\n  retq\n"}
+; nextln: clif/stage -> error -32602 no function `%h`
+; nextln: clif/stage -> error -32602 unknown stage `nope`
+; nextln: clif/stage -> error -32602 no function `%missing`
+set opt_level=speed
+target x86_64
+function %f(i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst.i32 0
+    v2 = iadd v0, v1
+    return v2
+}
+function %g(i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst.i32 0
+    v2 = iadd v0, v1
+    return v2
+}
