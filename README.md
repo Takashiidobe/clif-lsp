@@ -10,8 +10,10 @@ formatting, and views of the CFG and compiled output for `.clif` files.
 You need a Rust toolchain.
 
 ```sh
-cargo install --path .
+cargo install clif-lsp
 ```
+
+To build from a checkout instead, run `cargo install --path .`.
 
 This puts a `clif-lsp` binary on your `PATH`. It speaks LSP over stdio and takes
 no arguments.
@@ -45,6 +47,11 @@ requests are in [docs/requests.md](docs/requests.md).
   the workspace.
 - Semantic diagnostics and the stage views use the Cranelift version the server
   is built against. Text that a different version accepts may be rejected.
+
+## License
+
+Licensed under either of [Apache-2.0](LICENSE-APACHE) or [MIT](LICENSE-MIT), at
+your option.
 
 ## Contributing
 
